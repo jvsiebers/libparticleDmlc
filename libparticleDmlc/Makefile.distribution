@@ -1,0 +1,73 @@
+# libparticleDmlc.a and libparticleDmlc.so Makefile
+#
+# 10/23/2008: SW: compile and install libparticleDmlc
+#                 Modified from Makefile under 
+#                 ~/code/mcv/source/particleDmlc/pdmlc++
+# 11/05/2008: JVS: Minor modifications, obj's in obj/$UNAME
+# 01/05/2011: JVS: Update to use common makefile like other libraries....
+# 12/16/2014: JVS: Add in dynamicDelivery.cc
+# 06/05/2015: JVS: Make distribution
+#
+#
+##################################################
+# Define special things for the compliation of this library
+#########
+LIBRARY_NAME = libparticleDmlc
+#########
+# Important to have SRC_DIR defined BEFORE including the commonLibraryMakefile.mk so it knows what is is
+SRC_DIR = ./srcs/
+INC_DIR = ./include/
+#########
+LIB_SRCS = scatter.cc readMLC.cc dmlcRoutines.cc createTipTable.cc particleDmlcClass.cc dynamicDelivery.cc
+#########
+# Special header defines for this library
+LIB_HEADER_DIRS = -I$(INC_DIR) -I../libpjk 
+LIB_DEBUG_FLAGS = -DC_CLASS 
+###################################################
+COMMON_MAKE = commonLibraryMakefile.mk
+MyNull=$(wildcard $(COMMON_MAKE))
+ifeq ($(wildcard $(COMMON_MAKE)),)
+#$(warning TRUE)
+include ../commonLibraryMakefile.mk
+else
+#$(warning FALSE)
+include commonLibraryMakefile.mk
+endif
+##########
+#
+# For creating distribution
+###########################
+DIST_FILES =  \
+             Makefile \
+	     Makefile.distribution
+
+DIST_BASE_FILES = ../commonLibraryMakefile.mk
+
+DIST_HEADERS = include/controlPoint.h \
+include/dynamicDelivery.h \
+include/mc.h \
+include/mcrand.h \
+include/mcrng.h \
+include/particleDmlcClass.h \
+include/particleDmlc.h \
+include/typesClass.h 
+
+LIB_UVA_FILES := $(wildcard ../libjvs/*.cc  ../libpjk/*.cc ../libjvs/*.h ../libpjk/*.h ../include/*.h )
+###########################
+LIB_UVA = libUVA
+DIST_BASE    = ~/tmp/distribution
+DISTRIBUTION = $(DIST_BASE)/${LIBRARY_NAME}
+
+distribution:
+	@echo Creating distribution
+	mkdir -p ${DISTRIBUTION}/${SRC_DIR}
+	mkdir -p ${DISTRIBUTION}/${INC_DIR}
+	mkdir -p ${DIST_BASE}/${LIB_UVA}
+	for SRC in $(LIB_SRCS); do cp -p ${SRC_DIR}/$${SRC} ${DISTRIBUTION}/${SRC_DIR}; done
+	for SRC in $(LIB_UVA_FILES); do cp -p $${SRC} ${DIST_BASE}/${LIB_UVA}; done
+	for HDR in $(DIST_HEADERS); do cp -p $${HDR} ${DISTRIBUTION}/${INC_DIR}; done
+	for FIL in $(DIST_FILES); do cp -p $${FIL} ${DISTRIBUTION}; done
+
+#	@echo Completed copying required files to ${DISTRIBUTION}
+#	tar -czvf ${DISTRIBUTION}.tar.gz ${DISTRIBUTION}
+##############################

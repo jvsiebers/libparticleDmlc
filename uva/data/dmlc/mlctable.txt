@@ -1,0 +1,76 @@
+/ MLCTABLE.TXT for the Millenium MLC, 19981024
+
+/       Comment lines begin with the slash mark.
+
+/       The first non-comment line must be of the format
+/       "Ratio = <float>" where the floating point number 
+/       will be used as the ratio to convert leaf positions
+/       between isocenter and physical values.
+
+/       The value of this number is crucial for accurate
+/       leaf positioning.  It should not be changed except
+/       under the supervision of qualified Varian Service
+/       personnel.
+
+Ratio = 1.9607843
+
+
+/       If further correction of leaf positioning is required,
+/       the following data table may be modified.  This should
+/       be done only by qualified service personnel.  Refer to
+/       the MLC Users' Guide for details.
+
+/       The following is the default data table listing
+/       analytically determined target and observed
+/       data pairs.
+
+/       Use as many points as are necessary to define
+/       curved sections or transition regions.  Linear 
+/       segments of the plot need be defined only by 
+/       their end points.
+
+/       Data for the interpolation table MUST BE IN CM!!
+
+Data:
+-20.0000 : -20.3206
+-19.0000 : -19.2892
+-18.0000 : -18.2593
+-17.0000 : -17.2312
+-16.0000 : -16.2046
+-15.0000 : -15.1797
+-14.0000 : -14.1564
+-13.0000 : -13.1347
+-12.0000 : -12.1147
+-11.0000 : -11.0963
+-10.0000 : -10.0795
+ -9.0000 :  -9.0643
+ -8.0000 :  -8.0508
+ -7.0000 :  -7.0388
+ -6.0000 :  -6.0285
+ -5.0000 :  -5.0198
+ -4.0000 :  -4.0126
+ -3.0000 :  -3.0071
+ -2.0000 :  -2.0031
+ -1.0000 :  -1.0008
+  0.0000 :   0.0000
+  1.0000 :   0.9992
+  2.0000 :   1.9969
+  3.0000 :   2.9930
+  4.0000 :   3.9875
+  5.0000 :   4.9806
+  6.0000 :   5.9721
+  7.0000 :   6.9620
+  8.0000 :   7.9505
+  9.0000 :   8.9375
+ 10.0000 :   9.9230
+ 11.0000 :  10.9070
+ 12.0000 :  11.8895
+ 13.0000 :  12.8706
+ 14.0000 :  13.8503
+ 15.0000 :  14.8285
+ 16.0000 :  15.8053
+ 17.0000 :  16.7807
+ 18.0000 :  17.7547
+ 19.0000 :  18.7273
+ 20.0000 :  19.6986
+

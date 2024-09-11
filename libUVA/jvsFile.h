@@ -1,0 +1,32 @@
+/** \file 
+ simple tag auto added to force generation of simple doxygen comments
+**/
+/*
+   Copyright 2008 Virginia Commonwealth University
+
+
+   Advisory:
+1. The authors make no claim of accuracy of the information in these files or the 
+   results derived from use of these files.
+2. You are not allowed to re-distribute these files or the information contained within.
+3. This methods and information contained in these files was interpreted by the authors 
+   from various sources.  It is the users sole responsibility to verify the accuracy 
+   of these files.  
+4. If you find a error within these files, we ask that you to contact the authors 
+   and the distributor of these files.
+5. We ask that you acknowledge the source of these files in publications that use results
+   derived from the input 
+
+   Please contact us if you have any questions 
+*/
+/* 
+   MOdification History: Feb 7, 2007: JVS: Created
+ */
+#ifndef jvsFile_INCLUDED
+#define jvsFile_INCLUDED
+#include <string>
+using namespace std;
+/* **************************************************************** */
+FILE *openConfigFile(string configFileName, string mode); //< opens a config file by searching local directory, UVA_CONFIG/general, UVA_CONFIG/../general
+//
+#endif
