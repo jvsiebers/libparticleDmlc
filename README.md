@@ -1,23 +1,68 @@
-particleDmlc++
-Installation Instructions:
+
+## 💖 Sponsor This Project
+
+If you find this project useful or helpful, consider supporting its ongoing development!
+
+You can sponsor me through **GitHub Sponsors**:
+
+[![Sponsor Me](https://img.shields.io/badge/Sponsor-✨-ff69b4?style=for-the-badge&logo=github)](https://github.com/sponsors/jvsiebers)
+
+Your sponsorship helps me dedicate more time to improving and maintaining this project, and I greatly appreciate your support!
+
+
+
+
+
+# particleDmlc++
+## About
+This code implements the pseudo Monte Carlo photon transport through multi-leaf collimators as described in the publication
+
+> Siebers JV, Keall PJ, Kim JO, Mohan R. A method for photon beam Monte Carlo multileaf collimator particle transport. 
+> Phys Med Biol. 2002 Sep 7;47(17):3225-49. doi: 10.1088/0031-9155/47/17/312. PMID: 12361220.
+
+The code is supplied as a library (libparticleDmlc), and a sample code (particleDmlc++Demo) uses the code (requires libUVA) 
+to enable users to see a quick sample of how the code is run.
+
+The important steps of the code are:
+1. Getting plan delivery information (control point information, which specified Gantry, Collimator, and MLC positions) into a format recognizable by the code
+2. Getting the input particle phase space coordinates (from another MC program, source code module, or phase space file)
+3. Transport of particles through the MLC
+4. Passing particles onto the next stage (particles to next part of the geometry, e.g. the patient/phantom/EPID, or write particles to a phase space file. 
+
+
+## Installation Instructions:
 
 1. Make libUVA
-   >cd libUVA
-   >make
-2. Make libparticleDmlc
-   >cd libparticleDmlc
-   >make
+```bash
+   cd libUVA
+   make
+```
+2. Make libparticleDmlc 
+```bash
+    cd libparticleDmlc 
+    make
+```
 3. Make demo program
-   >cd particleDmlc++Demo
-   a. Assumes EGSnrc is installed and libiaea_phsp.so has been compiled
-   b. Makefile has a LOCAL HACK TO GET THIS GOING QUICKLY
+
+   a. Assumes EGSnrc is installed and `libiaea_phsp.so` has been compiled.
+
+   b. Makefile has a **LOCAL HACK TO GET THIS GOING QUICKLY**:
+      ```bash
       HEN_HOUSE=/mnt/d/jvsData/code/EGSnrc/HEN_HOUSE
       Change to your HEN_HOUSE location
-   c.  Edit Makefile to include correct path for libiaea_phsp.so)
-   >make
+      ```
+
+   c. Edit Makefile to include the correct path for `libiaea_phsp.so`:
+      ```bash
+      cd particleDmlc++Demo
+      make
+      ```
+
 4. Run the test program
-   >cd testRun
-   >./runTests
+```bash
+   cd testRun
+   ./runTests
+   ```
 
 
 -------------------------------------------------------
