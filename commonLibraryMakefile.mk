@@ -34,16 +34,13 @@ AR = ar
 # disable UVA compile which uses system libraries
 local = true
 
-
 ifeq ($(OS),Windows_NT)
 UNAME=$(shell uname)
 endif
+#
 
-UNAME=$(shell uname)
-
-# Normally, ARCH is gotten from UNAME or system commands.
-# this hack set to get things going quickly
-ARCH = x86_64-linux
+ARCH = $(shell echo `uname -p`-`uname -s` | tr '[:upper:]' '[:lower:]')
+UNAME = ${ARCH}
 
 ifeq ($(strip $(ARCH)),)
   UNAME = $(shell echo `uname -p`-$(OSTYPE))
@@ -220,7 +217,7 @@ $(SHARED_LIBRARY_NAME): $(LIB_OBJS) $(LIB_HEADERS) Makefile
 clean: 
 	rm -f $(LIB_OBJS) 
 	rm -f $(LIBRARIES)
-	rm -r $(DEPEND)
+	rm -f $(DEPEND)
 
 update: prep $(LIBRARIES)
 	${MAKE} ${MFLAGS} install
@@ -321,9 +318,9 @@ $(DEPEND):
 	@echo "----------------------"
 	@echo "Generating Depend file"
 	@echo "CFLAGS = $(CFLAGS)"
-	@echo -n; for j in *.cpp; do $(CDEPEND) $$j; done >  $(DEPEND); \
+	# @echo -n; for j in *.cpp; do $(CDEPEND) $$j; done >  $(DEPEND); \
 	for j in *.cc;  do $(CDEPEND) $$j; done >> $(DEPEND); \
 	for j in $(LIB_SRCS);  do $(CDEPEND) $(SRC_DIR)/$$j; done >> $(DEPEND); \
-
-include $(DEPEND)
+#
+#include $(DEPEND)
 ############## Done for creating dependancies #################

@@ -13,7 +13,7 @@ particleDmlcDemo="$demoHome/particleDmlc++Demo/particleDmlc++Demo"
 # the .so's must be in your path----I will temporarily extend LD_LIBRARY_PATH
 # you should put the .so's wherever you keep other .so's
 if [ -z "$UNAME" ]; then
-    UNAME="$(uname -p)-$OSTYPE"
+    UNAME=$(echo "$(uname -p)-$(uname -s)" | tr '[:upper:]' '[:lower:]')
 fi
 export LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:$demoHome/$UNAME"
 #

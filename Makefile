@@ -1,7 +1,9 @@
 # Directories
 LIBS = libUVA libiaea libparticleDmlc
 DEMO = particleDmlc++Demo
-LIB_DIR = x86_64-linux
+ARCH = $(shell echo `uname -p`-`uname -s` | tr '[:upper:]' '[:lower:]')
+UNAME = ${ARCH}
+LIB_DIR = $(UNAME)
 
 # Rule to compile all libraries and demo
 all: compile_libs compile_demo

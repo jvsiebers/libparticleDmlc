@@ -36,11 +36,11 @@ shared=true
 #######################################
 CC = g++
 
-UNAME = x86_64-linux
+ARCH=$(shell echo `uname -p`-`uname -s` | tr '[:upper:]' '[:lower:]')
+UNAME=$(ARCH)
 
-ARCH     = $(UNAME)
 ifeq ($(strip $(ARCH)),)
-  UNAME = $(shell echo `uname -p`-$(OSTYPE))
+  UNAME = $(shell echo `uname -p`)
   $(warning setting UNAME = $(UNAME), ARCH = $(ARCH))
 endif
 # 
@@ -99,7 +99,8 @@ DEBUG_FLAGS =  # -DDEBUG
 
 LOCAL_LIB_DIR =
 LIB_HOME_DIR = ../
-LIB_SYS = ../$(ARCH)
+LIB_SYS_DIR = ../$(ARCH)
+LIB_SYS = $(abspath $(LIB_SYS_DIR))
 IAEA_LIB = -I$(LIB_HOME_DIR)/libiaea
 LIBRARY = $(LIB_SYS)/libparticleDmlc.$(LIBE) $(LIB_SYS)/libUVA.$(LIBE) -l$(LIB_SYS)/iaea_phsp.$(LIBE)
 HEADER_DIRS  = -I./ -I../libUVA -I../libparticleDmlc/include -I$(LIB_HOME_DIR)/include  $(LIB_HEADER_DIRS)  $(IAEA_LIB)
@@ -154,10 +155,10 @@ CDEPEND=$(CC) $(CFLAGS) -M  # command to list dependencies
 DEPEND=./depend.$(ARCH)     # file to put dependencies in
 $(DEPEND):
 	@echo "Generating Depend file"
-	for j in *.cpp; do $(CDEPEND) $$j; done >  $(DEPEND); \
+	# for j in *.cpp; do $(CDEPEND) $$j; done >  $(DEPEND); \
 	for j in *.cc;  do $(CDEPEND) $$j; done >> $(DEPEND); \
 
-include $(DEPEND)
+# include $(DEPEND)
 ############## Done for creating dependencies #################
 
 .PHONY: clean
@@ -179,6 +180,7 @@ report:
 	@echo CFLAGS = $(CFLAGS)
 	@echo LFLAGS = $(LFLAGS)
 	@echo LIB_SYS_DIR = $(LIB_SYS_DIR)
+	@echo LIB_SYS = $(LIB_SYS)
 
 
 ##############################

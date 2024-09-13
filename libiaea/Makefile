@@ -82,10 +82,12 @@ test_event_generator$(OBJE): test_event_generator.cpp iaea_event_generator.h \
 clean:
 	rm *.o $(LIBRARIES)
 
-LIB_LOCAL = ../x86_64-linux
+
+ARCH=$(shell echo `uname -p`-`uname -s` | tr '[:upper:]' '[:lower:]')
+LIB_LOCAL = ../${ARCH}
 
 install:
-	@echo installing libraries to $(LIB_LOCAL) SET IN ../commonLibraryMakefile.mk
+	@echo installing libraries to $(LIB_LOCAL)
 	@echo -n; if [ -d $(LIB_LOCAL) ]; then true; else mkdir $(LIB_LOCAL); fi
 	@echo -n; for LNAME in $(LIBRARIES); do cp -p $${LNAME} ${LIB_LOCAL}; done
 
