@@ -27,10 +27,12 @@ export MFLAGS =
 # Jan 15, 2015: JVS: Add access to IAEA source
 # Jun  5, 2015: JVS: Add distribution and ability to compile off-site
 # Sep 11, 2024: JVS: Adapt for github repo of libparticleDmlc
+# Sep 13, 2020: JVS: Include libiaea, simplify makefile (get rid of garbage not needed)
 #
 #
 ########################################
-$(warning Use >make shared=true to use iaea source, which is required for arcs)
+# $(warning Use >make shared=true to use iaea source, which is required for arcs)
+shared=true
 #######################################
 CC = g++
 
@@ -92,79 +94,18 @@ ifdef valgrind
 OPT_FLAGS = -g -O0 
 endif 
 
-uvaCompile = on
-ifdef uvaCompile
-$(warning compiling at UVA)
-endif
 
-# LOCAL HACK TO GET THIS GOING QUICKLY
-HEN_HOUSE=/mnt/d/jvsData/code/EGSnrc/HEN_HOUSE
+DEBUG_FLAGS =  # -DDEBUG
 
-
-LOCAL_LIB_DIR = ../../../library
-IAEA_LIB = -I$(HEN_HOUSE)/iaea_phsp
-# IAEA_LIB = -I$(LOCAL_LIB_DIR)/libiaea
-
-$(info $$LIB_HOME_DIR = [${LIB_HOME_DIR}] )
-ifdef local
-LIB_HOME_DIR = $(LOCAL_LIB_DIR)
-HEADER_DIRS  = -I./ -I$(LIB_HOME_DIR)/include -I$(LIB_HOME_DIR)/libjvs -I$(LIB_HOME_DIR)/libpjk -I$(LIBMKF_INCLUDE) -I$(LIB_HOME_DIR)/libparticleDmlc/include $(IAEA_LIB)
-LIB_SYS_DIR  = $(LIB_HOME_DIR)/$(UNAME)
-LIB_EGS_DIR  = $(HEN_HOUSE)/egs++/dso/$(myEGSConf)
-else
-LIB_HOME_DIR = /usr/local/uva
-HEADER_DIRS  = -I./ -I./include -I$(LIB_HOME_DIR)/include -I$(LIBMKF_INCLUDE) $(LIB_HEADER_DIRS)  $(IAEA_LIB)
-LIB_SYS_DIR  = ${LIB_HOME_DIR}/lib
-LIB_EGS_DIR  = $(LIB_SYS_DIR)
-endif
-LIB_SYS      = $(LIB_SYS_DIR)
-#
-BIN_DIR = $(UVA_BIN)/$(UNAME)
-# LIB_DIR = $(LIB_HOME_DIR)
-# LIB_SYS = $(LIB_DIR)/$(UNAME)
-
-FEATURE_FLAGS = # -DNO_VECTOR_TALLY   # Turn on NO_VECTOR_TALLY
-ifdef oldlibmkf
-LIBMKF = libmkf
-LIBMKF_DIR = $(LIB_HOME_DIR)/libmkf
-LIBMKF_INCLUDE = $(LIBMKF_DIR)/include
-else
-LIBMKF = libmkfSM
-LIBMKF_DIR = $(LOCAL_LIB_DIR)/SourceModel2008/src/libmkf
-LIBMKF_INCLUDE = $(LIBMKF_DIR)
-endif
-
-# OLD_LIBMKF is used to read the phase space file
-DEBUG_FLAGS =  # -D OLD_LIBMKF #-DSOURCE_SIZE # -DDEBUG
-
-LIBRARY = $(LIB_SYS)/libparticleDmlc.$(LIBE)  $(LIB_SYS)/$(LIBMKF).$(LIBE) $(LIB_SYS)/libpjk.$(LIBE)  $(LIB_SYS)/libjvs.$(LIBE) $(LIB_SYS)/libmcv.$(LIBE) $(LIB_SYS)/libpin.$(LIBE) $(LIB_EGS_DIR)/libiaea_phsp.so
-LIB_NAMES =  libpjk.$(LIBE)  libjvs.$(LIBE) libmcv.$(LIBE) libpjk.$(LIBE) libpin.$(LIBE) libparticleDmlc.$(LIBE)  $(LIBMKF).$(LIBE)
-ifdef shared
-LIBRARY = -L$(LIB_SYS_DIR) -lmkfSM -lpjk -ljvs -lmcv -lpin -lparticleDmlc -liaea_phsp
-endif
-#
-WLIBRARY = $(LIB_SYS)/libparticleDmlc.$(LIBE) $(LIB_SYS)/libpjk.$(LIBE)  $(LIB_SYS)/libjvs.$(LIBE) $(LIB_SYS)/libmcv.$(LIBE) $(LIB_SYS)/libpin.$(LIBE) 
-#
-# 
-# End of section for UVA compile
-ifndef uvaCompile
-# This section is for non-UVA compile
-# end of section for non-UVA compile
-$(warning Set to compile outside of UVA)
-# Disable several independent librarys, they are all bundled in libUVA for particleDmlc
 LOCAL_LIB_DIR =
 LIB_HOME_DIR = ../
 LIB_SYS = ../$(ARCH)
-LIBMKF =
-LIBMKF_DIR =
-LIBMKF_INCLUDE =
-LIBRARY = $(LIB_SYS)/libparticleDmlc.$(LIBE) $(LIB_SYS)/libUVA.$(LIBE) -liaea_phsp
+IAEA_LIB = -I$(LIB_HOME_DIR)/libiaea
+LIBRARY = $(LIB_SYS)/libparticleDmlc.$(LIBE) $(LIB_SYS)/libUVA.$(LIBE) -l$(LIB_SYS)/iaea_phsp.$(LIBE)
 HEADER_DIRS  = -I./ -I../libUVA -I../libparticleDmlc/include -I$(LIB_HOME_DIR)/include  $(LIB_HEADER_DIRS)  $(IAEA_LIB)
 # -I../iaea_phsp
 ifdef shared
-LIBRARY = -L$(LIB_SYS_DIR) -lUVA -lparticleDmlc -liaea_phsp
-endif
-BIN_DIR = ../bin
+LIBRARY = -L$(LIB_SYS) -lUVA -lparticleDmlc -liaea_phsp
 endif
 #
 CFLAGS  = $(HEADER_DIRS) $(SYSTEM_FLAGS) $(OPT_FLAGS) $(DEBUG_FLAGS) $(PROFILE_FLAGS) $(FEATURE_FLAGS) # -O
@@ -173,9 +114,7 @@ CCFLAGS = $(CFLAGS) -DCC $(PROFILE_FLAGS) -DC_CLASS
 LFLAGS = -lm 
 FFLAGS = -O 
 
-EXECUTE = particleDmlc++ 
-
-#particleDmlc++Demo
+EXECUTE = particleDmlc++Demo
 
 all: $(EXECUTE)
 
@@ -188,31 +127,14 @@ all: $(EXECUTE)
 %.o : %.cc
 	$(CC) -c $(CCFLAGS)  $< -o $@
 
-EXECUTEClass = particleDmlcClass
-
-particleDmlc++: particleDmlc++.o $(PDMLC_HEADERS) Makefile $(SHARED_LIBRARY_NAME) # $(LIBRARY) 
+particleDmlc++: particleDmlc++.o $(PDMLC_HEADERS) Makefile $(SHARED_LIBRARY_NAME) # $(LIBRARY)
 	$(CC) $<  $(CFLAGS) $(LIBRARY) $(LFLAGS) -o $@
 
 particleDmlc++Demo: particleDmlc++Demo.o $(PDMLC_HEADERS) Makefile $(SHARED_LIBRARY_NAME) # $(LIBRARY) 
 	$(CC) $<  $(CFLAGS) $(LIBRARY) $(LFLAGS) -o $@
 
-writeMLCAperture: writeMLCAperture.cc $(PDMLC_HEADERS) Makefile $(SHARED_LIBRARY_NAME) # $(LIBRARY) 
-	$(CC) $<  $(CFLAGS) $(WLIBRARY) $(LFLAGS) -o $@
-
-
 ######################################
 ######################################
-
-update: $(LIBRARIES)
-	${MAKE} ${MFLAGS} install
-
-install: $(EXECUTE)
-	@echo Installing to $(BIN_DIR)
-	if [ -d $(BIN_DIR) ]; then true; else mkdir $(BIN_DIR); fi
-	@echo Copying File
-	for ENAME in $(EXECUTE); do cp $${ENAME} ${BIN_DIR}; done
-	@echo Installation Complete
-	@echo Copied files $(EXECUTE) to $(BIN_DIR)
 
 ######### Take care of dependancies on libraries   ##########
 #lib_dirs = ${LIB_NAMES:.$(LIBE)=}
@@ -227,16 +149,16 @@ lib_check :
 	@echo "-----Done Checking Libaries ------"
 	@echo " "
 ##############################################################
-############## for creating dependancies #####################
-CDEPEND=$(CC) $(CFLAGS) -M  # command to list dependancies
-DEPEND=./depend.$(ARCH)     # file to put dependancies in
+############## for creating dependencies #####################
+CDEPEND=$(CC) $(CFLAGS) -M  # command to list dependencies
+DEPEND=./depend.$(ARCH)     # file to put dependencies in
 $(DEPEND):
 	@echo "Generating Depend file"
 	for j in *.cpp; do $(CDEPEND) $$j; done >  $(DEPEND); \
 	for j in *.cc;  do $(CDEPEND) $$j; done >> $(DEPEND); \
 
 include $(DEPEND)
-############## Done for creating dependancies #################
+############## Done for creating dependencies #################
 
 .PHONY: clean
 clean:
@@ -250,51 +172,13 @@ report:
 	@echo UNAME = $(UNAME)
 	@echo LIB_SYS = $(LIB_SYS)
 	@echo LOCAL_LIB_DIR = $(LOCAL_LIB_DIR)
-	@echo LIBMKF_DIR = $(LIBMKF_DIR)
-	@echo LIBMKF_INCLUDE = $(LIBMKF_INCLUDE)
 	@echo IAEA_LIB = $(IAEA_LIB)
 	@echo LIB_EGS_DIR = $(LIB_EGS_DIR)
 	@echo HEADER_DIRS = $(HEADER_DIRS)
 	@echo LIBRARY = $(LIBRARY)
+	@echo CFLAGS = $(CFLAGS)
+	@echo LFLAGS = $(LFLAGS)
+	@echo LIB_SYS_DIR = $(LIB_SYS_DIR)
 
-#	@echo IAEA_SRCS = $(IAEA_SRCS)
-
-#help:
-#	@echo Requires that HEN_HOUSE is defined 
-#	@echo Requires \$HEN_HOUSE/iaea_phsp is compiled
-#
-#
-# For creating distribution
-###########################
-DIST_FILES = Makefile \
-             particleDmlc++Demo.cc
-
-DIST_HEADERS =  $(LOCAL_LIB_DIR)/libjvs/printRunTimeInformation.h 
-
-myIAEA_DIR = $(HEN_HOUSE)/iaea_phsp
-IAEA_SRCS := $(wildcard $(myIAEA_DIR)/*.cpp  $(myIAEA_DIR)/*.h  $(myIAEA_DIR)/Makefile)
-#
-#
-TEST_FILES = conformalArc.dml  fixedBeam.dml   smartArc.dml  stepAndShoot.dml \
-             inputPhaseSpace.egsphsp1  runTests 
-
-
-###########################
-DIST_BASE = ~/tmp/distribution/
-DISTRIBUTION=$(DIST_BASE)/particleDmlc++Demo
-
-distribution:
-	@echo Creating distribution
-	mkdir -p ${DISTRIBUTION}/${SRC_DIR}
-	mkdir -p ${DISTRIBUTION}/${INC_DIR}
-	mkdir -p ${DIST_BASE}/iaea_phsp
-	mkdir -p ${DIST_BASE}/testRun
-	for SRC in $(LIB_SRCS); do cp -p ${SRC_DIR}/$${SRC} ${DISTRIBUTION}/${SRC_DIR}; done
-	for SRC in $(IAEA_SRCS); do cp -p $${SRC} ${DIST_BASE}/iaea_phsp; done
-	for HDR in $(DIST_HEADERS); do cp -p $${HDR} ${DISTRIBUTION}/${INC_DIR}; done
-	for FIL in $(DIST_FILES); do cp -p $${FIL} ${DISTRIBUTION}; done
-	for FIL in $(TEST_FILES); do cp -p testRun/$${FIL} ${DIST_BASE}/testRun; done
-	cp -p /usr/local/uva/include/egs_config1.h   $(DISTRIBUTION)/${SRC_DIR}
-	cp -p Makefile.demo $(DISTRIBUTION)/${SRC_DIR}/Makefile
 
 ##############################

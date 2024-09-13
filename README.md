@@ -32,27 +32,33 @@ The important steps of the code are:
 
 ## Installation Instructions:
 
-1. Make libUVA
-```bash
-   cd libUVA
-   make
-```
-2. Make libparticleDmlc 
-```bash
-    cd libparticleDmlc 
-    make
-```
-3. Make demo program
+Currently, will put libraries in x86_64-linux directory.  Update Makefile(s) to change
 
-   a. Assumes EGSnrc is installed and `libiaea_phsp.so` has been compiled.
+1. Make all the codes
 
-   b. Makefile has a **LOCAL HACK TO GET THIS GOING QUICKLY**:
+   a. Method 1: All in one Makefile
+      ```bash 
+       make
+    ```
+   
+   b. Method 2: Per library Makefile
+
+      i.Make libUVA
       ```bash
-      HEN_HOUSE=/mnt/d/jvsData/code/EGSnrc/HEN_HOUSE
-      Change to your HEN_HOUSE location
+         cd libUVA
+         make
       ```
-
-   c. Edit Makefile to include the correct path for `libiaea_phsp.so`:
+     ii. Make libparticleDmlc 
+      ```bash
+         cd libparticleDmlc 
+         make
+     ```
+     ii. Make libiaea_phsp
+      ```bash
+         cd libiaea_phsp 
+         make
+     ```
+3. Make demo program
       ```bash
       cd particleDmlc++Demo
       make

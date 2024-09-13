@@ -23,7 +23,7 @@ LIB_SRCS = scatter.cc readMLC.cc dmlcRoutines.cc createTipTable.cc particleDmlcC
 #########
 # Special header defines for this library
 LIB_HEADER_DIRS = -I$(INC_DIR) -I../libUVA 
-LIB_SO_LINK_FLAGS = -L $(LIB_SYS) -l pjk
+LIB_SO_LINK_FLAGS = -L $(LIB_SYS)
 LIB_DEBUG_FLAGS = -DC_CLASS 
 ###################################################
 COMMON_MAKE = commonLibraryMakefile.mk

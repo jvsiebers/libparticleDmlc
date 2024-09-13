@@ -31,13 +31,20 @@ CC = g++
 FC = g77
 AR = ar
 
+# disable UVA compile which uses system libraries
+local = true
+
+
 ifeq ($(OS),Windows_NT)
 UNAME=$(shell uname)
 endif
 
 UNAME=$(shell uname)
 
+# Normally, ARCH is gotten from UNAME or system commands.
+# this hack set to get things going quickly
 ARCH = x86_64-linux
+
 ifeq ($(strip $(ARCH)),)
   UNAME = $(shell echo `uname -p`-$(OSTYPE))
   $(warning setting UNAME = $(UNAME), ARCH = $(ARCH))
@@ -65,14 +72,15 @@ endif
 # 		
 ifdef local
 LIB_HOME_DIR    = ../
-HEADER_DIRS  =  $(LIB_HEADER_DIRS) -I./ -I$(LIB_HOME_DIR)/include -I$(LIB_HOME_DIR)/libjvs 
+HEADER_DIRS  =  $(LIB_HEADER_DIRS) -I./ -I$(LIB_HOME_DIR)/include # -I$(LIB_HOME_DIR)/libjvs
 else
 LIB_HOME_DIR = /usr/local/uva
 HEADER_DIRS  =  $(LIB_HEADER_DIRS) -I./ -I$(LIB_HOME_DIR)/include 
 endif
 # 
 LIB_LOCAL = ../$(ARCH)/$(COMPILER_OPTIONS_ADDED_PATH)
-LIB_BASE = /usr/local/uva/
+# LIB_BASE = /usr/local/uva/
+LIB_BASE =
 # $(COMPILER_OPTIONS_ADDED_PATH)
 LIB_SYS = $(LIB_BASE)/lib$(LIB_BITS)/
 LIB_SYS_INCLUDE	 = $(LIB_BASE)/include/
