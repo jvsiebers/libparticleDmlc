@@ -2,11 +2,13 @@
 
 #include <cmath>
 #include <cstdio>
+#include <cstring>
 #include <memory>
 #include <new>
 
 struct mcdose_particle_dmlc_egsnrc_source_context_v1 {
     mcdose_particle_dmlc_producer_context_v1 *producer = nullptr;
+    mcdose_particle_dmlc_source_output_correction_config_v1 output_correction = {};
     double electron_rest_mass_mev = 0.0;
     int32_t region = 0;
     int32_t latch = 0;
@@ -51,27 +53,40 @@ bool valid_rest_mass(double value) {
     return std::isfinite(value) && value > minimum_supported_rest_mass_mev &&
            value < maximum_supported_rest_mass_mev;
 }
-}  // namespace
 
-extern "C" int32_t
-mcdose_particle_dmlc_create_egsnrc_source_from_startup_v1(
-    const char *path, double electron_rest_mass_mev,
+int32_t create_source(
+    const char *startup_path, const char *output_correction_path,
+    double electron_rest_mass_mev,
     mcdose_particle_dmlc_host_random_callback_v1 random_callback,
     void *random_user_data,
     mcdose_particle_dmlc_egsnrc_source_context_v1 **context,
-    mcdose_particle_dmlc_startup_info_v1 *startup_info, char *diagnostic,
-    size_t diagnostic_capacity) {
+    mcdose_particle_dmlc_startup_info_v1 *startup_info,
+    mcdose_particle_dmlc_source_output_correction_info_v1 *correction_info,
+    char *diagnostic, size_t diagnostic_capacity) {
     clear_diagnostic(diagnostic, diagnostic_capacity);
-    if (path == nullptr || random_callback == nullptr || context == nullptr) {
+    const bool has_correction =
+        output_correction_path != nullptr && output_correction_path[0] != '\0';
+    if (startup_path == nullptr || random_callback == nullptr ||
+        context == nullptr || (correction_info != nullptr && !has_correction)) {
         return fail(MCDOSE_PARTICLE_DMLC_STATUS_INVALID_ARGUMENT, diagnostic,
                     diagnostic_capacity,
-                    "EGSnrc source creation contains a null required pointer");
+                    "EGSnrc source creation contains an invalid required argument");
     }
     *context = nullptr;
     if (!valid_rest_mass(electron_rest_mass_mev)) {
         return fail(MCDOSE_PARTICLE_DMLC_STATUS_VALIDATION_FAILED, diagnostic,
                     diagnostic_capacity,
                     "EGSnrc source electron rest mass is invalid");
+    }
+    if ((startup_info != nullptr &&
+         (startup_info->abi_version != MCDOSE_PARTICLE_DMLC_NATIVE_ABI_VERSION ||
+          startup_info->struct_size < sizeof(*startup_info))) ||
+        (correction_info != nullptr &&
+         (correction_info->abi_version != MCDOSE_PARTICLE_DMLC_NATIVE_ABI_VERSION ||
+          correction_info->struct_size < sizeof(*correction_info)))) {
+        return fail(MCDOSE_PARTICLE_DMLC_STATUS_ABI_MISMATCH, diagnostic,
+                    diagnostic_capacity,
+                    "EGSnrc source information ABI version or size differs");
     }
     std::unique_ptr<mcdose_particle_dmlc_egsnrc_source_context_v1> result;
     try {
@@ -82,11 +97,45 @@ mcdose_particle_dmlc_create_egsnrc_source_from_startup_v1(
                     diagnostic_capacity,
                     "EGSnrc source context allocation failed");
     }
+    mcdose_particle_dmlc_startup_info_v1 loaded_startup = {};
+    loaded_startup.abi_version = MCDOSE_PARTICLE_DMLC_NATIVE_ABI_VERSION;
+    loaded_startup.struct_size = sizeof(loaded_startup);
     int32_t status = mcdose_particle_dmlc_create_producer_from_startup_v1(
-        path, &result->producer, startup_info, diagnostic,
+        startup_path, &result->producer, &loaded_startup, diagnostic,
         diagnostic_capacity);
     if (status != MCDOSE_PARTICLE_DMLC_STATUS_OK) {
         return status;
+    }
+    mcdose_particle_dmlc_source_output_correction_info_v1 loaded_correction = {};
+    if (has_correction) {
+        result->output_correction.abi_version =
+            MCDOSE_PARTICLE_DMLC_NATIVE_ABI_VERSION;
+        result->output_correction.struct_size = sizeof(result->output_correction);
+        loaded_correction.abi_version = MCDOSE_PARTICLE_DMLC_NATIVE_ABI_VERSION;
+        loaded_correction.struct_size = sizeof(loaded_correction);
+        status = mcdose_particle_dmlc_load_source_output_correction_v1(
+            output_correction_path, &result->output_correction,
+            &loaded_correction, diagnostic, diagnostic_capacity);
+        if (status == MCDOSE_PARTICLE_DMLC_STATUS_OK &&
+            std::strcmp(loaded_correction.startup_payload_sha256,
+                        loaded_startup.payload_sha256) != 0) {
+            status = fail(MCDOSE_PARTICLE_DMLC_STATUS_VALIDATION_FAILED,
+                          diagnostic, diagnostic_capacity,
+                          "source-output correction startup payload differs");
+        }
+        if (status == MCDOSE_PARTICLE_DMLC_STATUS_OK) {
+            status =
+                mcdose_particle_dmlc_set_producer_sampled_weight_callback_v1(
+                    result->producer,
+                    mcdose_particle_dmlc_apply_source_output_correction_v1,
+                    &result->output_correction, diagnostic,
+                    diagnostic_capacity);
+        }
+        if (status != MCDOSE_PARTICLE_DMLC_STATUS_OK) {
+            mcdose_particle_dmlc_destroy_producer_context_v1(result->producer);
+            result->producer = nullptr;
+            return status;
+        }
     }
     status = mcdose_particle_dmlc_set_producer_random_source_v1(
         result->producer, random_callback, random_user_data, diagnostic,
@@ -97,8 +146,49 @@ mcdose_particle_dmlc_create_egsnrc_source_from_startup_v1(
         return status;
     }
     result->electron_rest_mass_mev = electron_rest_mass_mev;
+    if (startup_info != nullptr) {
+        *startup_info = loaded_startup;
+    }
+    if (correction_info != nullptr) {
+        *correction_info = loaded_correction;
+    }
     *context = result.release();
     return MCDOSE_PARTICLE_DMLC_STATUS_OK;
+}
+}  // namespace
+
+extern "C" int32_t
+mcdose_particle_dmlc_create_egsnrc_source_from_startup_v1(
+    const char *path, double electron_rest_mass_mev,
+    mcdose_particle_dmlc_host_random_callback_v1 random_callback,
+    void *random_user_data,
+    mcdose_particle_dmlc_egsnrc_source_context_v1 **context,
+    mcdose_particle_dmlc_startup_info_v1 *startup_info, char *diagnostic,
+    size_t diagnostic_capacity) {
+    return create_source(path, nullptr, electron_rest_mass_mev, random_callback,
+                         random_user_data, context, startup_info, nullptr,
+                         diagnostic, diagnostic_capacity);
+}
+
+extern "C" int32_t
+mcdose_particle_dmlc_create_egsnrc_source_from_startup_with_output_correction_v1(
+    const char *startup_path, const char *output_correction_path,
+    double electron_rest_mass_mev,
+    mcdose_particle_dmlc_host_random_callback_v1 random_callback,
+    void *random_user_data,
+    mcdose_particle_dmlc_egsnrc_source_context_v1 **context,
+    mcdose_particle_dmlc_startup_info_v1 *startup_info,
+    mcdose_particle_dmlc_source_output_correction_info_v1 *correction_info,
+    char *diagnostic, size_t diagnostic_capacity) {
+    if (output_correction_path == nullptr || output_correction_path[0] == '\0') {
+        return fail(MCDOSE_PARTICLE_DMLC_STATUS_INVALID_ARGUMENT, diagnostic,
+                    diagnostic_capacity,
+                    "corrected EGSnrc source requires an output-correction path");
+    }
+    return create_source(startup_path, output_correction_path,
+                         electron_rest_mass_mev, random_callback,
+                         random_user_data, context, startup_info,
+                         correction_info, diagnostic, diagnostic_capacity);
 }
 
 extern "C" void mcdose_particle_dmlc_destroy_egsnrc_source_context_v1(

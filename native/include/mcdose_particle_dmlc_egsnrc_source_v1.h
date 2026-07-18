@@ -2,6 +2,7 @@
 #define MCDOSE_PARTICLE_DMLC_EGSNRC_SOURCE_V1_H
 
 #include "mcdose_particle_dmlc_egsnrc_adapter_v1.h"
+#include "mcdose_particle_dmlc_source_output_correction_v1.h"
 #include "mcdose_particle_dmlc_startup_v1.h"
 
 #ifdef __cplusplus
@@ -34,6 +35,24 @@ mcdose_particle_dmlc_create_egsnrc_source_from_startup_v1(
     void *random_user_data,
     mcdose_particle_dmlc_egsnrc_source_context_v1 **context,
     mcdose_particle_dmlc_startup_info_v1 *startup_info,
+    char *diagnostic,
+    size_t diagnostic_capacity);
+
+/*
+ * Creates the same source with one separately versioned, startup-bound output
+ * correction. The correction is evaluated at the producer's exact sampled jaw
+ * state and applied once before retained products enter the EGSnrc stack.
+ */
+MCDOSE_PARTICLE_DMLC_API int32_t
+mcdose_particle_dmlc_create_egsnrc_source_from_startup_with_output_correction_v1(
+    const char *startup_path,
+    const char *output_correction_path,
+    double electron_rest_mass_mev,
+    mcdose_particle_dmlc_host_random_callback_v1 random_callback,
+    void *random_user_data,
+    mcdose_particle_dmlc_egsnrc_source_context_v1 **context,
+    mcdose_particle_dmlc_startup_info_v1 *startup_info,
+    mcdose_particle_dmlc_source_output_correction_info_v1 *correction_info,
     char *diagnostic,
     size_t diagnostic_capacity);
 

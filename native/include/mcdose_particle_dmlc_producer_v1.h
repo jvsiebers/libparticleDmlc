@@ -10,6 +10,16 @@ extern "C" {
 typedef struct mcdose_particle_dmlc_producer_context_v1
     mcdose_particle_dmlc_producer_context_v1;
 
+typedef int32_t (*mcdose_particle_dmlc_sampled_weight_callback_v1)(
+    void *user_data,
+    const mcdose_particle_dmlc_sampled_state_v1 *sampled_state,
+    const double *bank_1_positions_cm,
+    const double *bank_2_positions_cm,
+    uint64_t position_count,
+    double *weight_factor,
+    char *diagnostic,
+    size_t diagnostic_capacity);
+
 enum mcdose_particle_dmlc_producer_product_kind_v1 {
     MCDOSE_PARTICLE_DMLC_PRODUCER_PRIMARY = 1,
     MCDOSE_PARTICLE_DMLC_PRODUCER_SCATTERED_PHOTON = 2,
@@ -89,6 +99,20 @@ MCDOSE_PARTICLE_DMLC_API int32_t
 mcdose_particle_dmlc_set_producer_random_source_v1(
     mcdose_particle_dmlc_producer_context_v1 *context,
     mcdose_particle_dmlc_host_random_callback_v1 callback,
+    void *user_data,
+    char *diagnostic,
+    size_t diagnostic_capacity);
+
+/*
+ * Installs one source-owned deterministic correction evaluated from the exact
+ * sampled delivery state. The producer validates and multiplies the returned
+ * positive finite factor into every retained product from that incident ray.
+ * The callback does not own the sampled state or opening arrays.
+ */
+MCDOSE_PARTICLE_DMLC_API int32_t
+mcdose_particle_dmlc_set_producer_sampled_weight_callback_v1(
+    mcdose_particle_dmlc_producer_context_v1 *context,
+    mcdose_particle_dmlc_sampled_weight_callback_v1 callback,
     void *user_data,
     char *diagnostic,
     size_t diagnostic_capacity);

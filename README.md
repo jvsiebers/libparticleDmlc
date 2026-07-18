@@ -165,6 +165,20 @@ Configured CTest runs set
 startup database; CMake reports when those artifact-dependent tests are not
 registered.
 
+The producer also exposes one optional, one-time sampled-weight callback. It is
+called only after the exact fractional-MU state and all device openings have
+been sampled, and before classification or transport. The separate
+`mcdose_particle_dmlc_source_output_correction` integration library loads the
+fixed-size `mcdose.particle-dmlc-source-output-correction/v1` artifact and
+implements the migrated field-size evaluator without adding DICOM or
+commissioning-config parsing to the transport core. The artifact is bound to
+the exact startup payload SHA-256. The corrected EGSnrc source constructor
+requires that binding, owns the evaluator configuration for the complete source
+context lifetime, and scales all retained products once. The ordinary source
+constructor retains identity weighting. Release and ASan/UBSan tests cover
+Python-generated artifact loading, strict dimensions and integrity, startup
+binding, constructor failure, and the exact corrected-to-identity weight ratio.
+
 `native/integration/egsnrc_dosxyznrc_source21_v1.patch` is pinned to EGSnrc
 commit `9edee3ebfda3d81d0e8eb033a7e76bf9a70e41ef`. It adds the explicit
 `mcdose_particle_dmlc` source-21 token, forwards BEAM's scoring-plane ray and

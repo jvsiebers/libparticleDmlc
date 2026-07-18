@@ -103,11 +103,26 @@ extern "C" void F77_OBJ_(
     mcdose_particle_dmlc_startup_info_v1 info = {};
     info.abi_version = MCDOSE_PARTICLE_DMLC_NATIVE_ABI_VERSION;
     info.struct_size = sizeof(info);
+    const char *correction_path = std::getenv(
+        "MCDOSE_PARTICLE_DMLC_OUTPUT_CORRECTION_ARTIFACT");
     char diagnostic[512];
-    const int32_t create_status =
-        mcdose_particle_dmlc_create_egsnrc_source_from_startup_v1(
-            path, static_cast<double>(*electron_rest_mass_mev), next_random, nullptr,
-            &result->source, &info, diagnostic, sizeof(diagnostic));
+    int32_t create_status = MCDOSE_PARTICLE_DMLC_STATUS_OK;
+    if (correction_path != nullptr && correction_path[0] != '\0') {
+        mcdose_particle_dmlc_source_output_correction_info_v1 correction_info = {};
+        correction_info.abi_version = MCDOSE_PARTICLE_DMLC_NATIVE_ABI_VERSION;
+        correction_info.struct_size = sizeof(correction_info);
+        create_status =
+            mcdose_particle_dmlc_create_egsnrc_source_from_startup_with_output_correction_v1(
+                path, correction_path,
+                static_cast<double>(*electron_rest_mass_mev), next_random,
+                nullptr, &result->source, &info, &correction_info, diagnostic,
+                sizeof(diagnostic));
+    } else {
+        create_status = mcdose_particle_dmlc_create_egsnrc_source_from_startup_v1(
+            path, static_cast<double>(*electron_rest_mass_mev), next_random,
+            nullptr, &result->source, &info, diagnostic,
+            sizeof(diagnostic));
+    }
     if (create_status != MCDOSE_PARTICLE_DMLC_STATUS_OK) {
         report_failure("source initialization", create_status, diagnostic);
         *status = static_cast<EGS_I32>(create_status);

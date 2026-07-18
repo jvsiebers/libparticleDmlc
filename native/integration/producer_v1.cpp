@@ -39,6 +39,9 @@ struct mcdose_particle_dmlc_producer_context_v1 {
     uint32_t next_product = 0;
     mcdose_particle_dmlc_host_random_callback_v1 random_callback = nullptr;
     void *random_user_data = nullptr;
+    mcdose_particle_dmlc_sampled_weight_callback_v1 sampled_weight_callback =
+        nullptr;
+    void *sampled_weight_user_data = nullptr;
 };
 
 namespace {
@@ -353,6 +356,28 @@ extern "C" int32_t mcdose_particle_dmlc_set_producer_random_source_v1(
     return status;
 }
 
+extern "C" int32_t
+mcdose_particle_dmlc_set_producer_sampled_weight_callback_v1(
+    mcdose_particle_dmlc_producer_context_v1 *context,
+    mcdose_particle_dmlc_sampled_weight_callback_v1 callback,
+    void *user_data, char *diagnostic, size_t diagnostic_capacity) {
+    clear_diagnostic(diagnostic, diagnostic_capacity);
+    if (context == nullptr || callback == nullptr || user_data == nullptr) {
+        return fail(MCDOSE_PARTICLE_DMLC_STATUS_INVALID_ARGUMENT, diagnostic,
+                    diagnostic_capacity,
+                    "producer sampled-weight callback contains a null pointer");
+    }
+    if (context->next_product < context->product_count ||
+        context->sampled_weight_callback != nullptr) {
+        return fail(MCDOSE_PARTICLE_DMLC_STATUS_VALIDATION_FAILED, diagnostic,
+                    diagnostic_capacity,
+                    "producer sampled-weight callback cannot be replaced");
+    }
+    context->sampled_weight_callback = callback;
+    context->sampled_weight_user_data = user_data;
+    return MCDOSE_PARTICLE_DMLC_STATUS_OK;
+}
+
 extern "C" int32_t mcdose_particle_dmlc_produce_v1(
     mcdose_particle_dmlc_producer_context_v1 *context,
     const mcdose_particle_dmlc_particle_v1 *incident_particle,
@@ -411,6 +436,29 @@ extern "C" int32_t mcdose_particle_dmlc_produce_v1(
         return status;
     }
 
+    mcdose_particle_dmlc_particle_v1 corrected_incident = *incident_particle;
+    const mcdose_particle_dmlc_particle_v1 *transport_incident = incident_particle;
+    if (context->sampled_weight_callback != nullptr) {
+        double weight_factor = 0.0;
+        status = context->sampled_weight_callback(
+            context->sampled_weight_user_data, &sampled_state,
+            context->bank_1_positions_cm.data(),
+            context->bank_2_positions_cm.data(), context->total_pair_count,
+            &weight_factor, diagnostic, diagnostic_capacity);
+        if (status != MCDOSE_PARTICLE_DMLC_STATUS_OK) {
+            return sanitize_callback_status(status);
+        }
+        corrected_incident.weight *= weight_factor;
+        if (!std::isfinite(weight_factor) || weight_factor <= 0.0 ||
+            !std::isfinite(corrected_incident.weight) ||
+            corrected_incident.weight <= 0.0) {
+            return fail(MCDOSE_PARTICLE_DMLC_STATUS_VALIDATION_FAILED,
+                        diagnostic, diagnostic_capacity,
+                        "producer sampled-weight callback returned an invalid factor");
+        }
+        transport_incident = &corrected_incident;
+    }
+
     summary->source_segment_index = sampled_state.source_segment_index;
     summary->fractional_meterset = sampled_state.fractional_meterset;
     summary->interpolation_fraction = sampled_state.interpolation_fraction;
@@ -421,7 +469,7 @@ extern "C" int32_t mcdose_particle_dmlc_produce_v1(
                         diagnostic, diagnostic_capacity,
                         "jaw tracking requires a positive incident Z position");
         }
-        if (blocked_by_tracked_jaws(context, incident_particle)) {
+        if (blocked_by_tracked_jaws(context, transport_incident)) {
             return MCDOSE_PARTICLE_DMLC_STATUS_OK;
         }
     }
@@ -439,10 +487,12 @@ extern "C" int32_t mcdose_particle_dmlc_produce_v1(
     mcdose_particle_dmlc_ray_v1 ray = {};
     ray.abi_version = MCDOSE_PARTICLE_DMLC_NATIVE_ABI_VERSION;
     ray.struct_size = sizeof(ray);
-    std::copy(std::begin(incident_particle->position_cm),
-              std::end(incident_particle->position_cm), std::begin(ray.position_cm));
-    std::copy(std::begin(incident_particle->direction),
-              std::end(incident_particle->direction), std::begin(ray.direction));
+    std::copy(std::begin(transport_incident->position_cm),
+              std::end(transport_incident->position_cm),
+              std::begin(ray.position_cm));
+    std::copy(std::begin(transport_incident->direction),
+              std::end(transport_incident->direction),
+              std::begin(ray.direction));
     mcdose_particle_dmlc_classification_v1 classification = {};
     classification.abi_version = MCDOSE_PARTICLE_DMLC_NATIVE_ABI_VERSION;
     classification.struct_size = sizeof(classification);
@@ -457,7 +507,7 @@ extern "C" int32_t mcdose_particle_dmlc_produce_v1(
     primary.abi_version = MCDOSE_PARTICLE_DMLC_NATIVE_ABI_VERSION;
     primary.struct_size = sizeof(primary);
     status = mcdose_particle_dmlc_finalize_equivalent_primary_v1(
-        context->machine, &classification, incident_particle, &primary,
+        context->machine, &classification, transport_incident, &primary,
         diagnostic, diagnostic_capacity);
     if (status != MCDOSE_PARTICLE_DMLC_STATUS_OK) {
         return status;
@@ -473,7 +523,7 @@ extern "C" int32_t mcdose_particle_dmlc_produce_v1(
     uint32_t scattered_retained = 0;
     uint32_t generated_electron_discarded = 0;
     uint32_t total_random_draw_count = 0;
-    if (incident_particle->charge == MCDOSE_PARTICLE_DMLC_PHOTON &&
+    if (transport_incident->charge == MCDOSE_PARTICLE_DMLC_PHOTON &&
         primary.photon_attenuation.interaction_probability > 0.0 &&
         primary.photon_attenuation.incoherent_interaction_fraction > 0.0) {
         if (context->random_callback == nullptr) {
@@ -512,7 +562,7 @@ extern "C" int32_t mcdose_particle_dmlc_produce_v1(
         compton.abi_version = MCDOSE_PARTICLE_DMLC_NATIVE_ABI_VERSION;
         compton.struct_size = sizeof(compton);
         status = mcdose_particle_dmlc_sample_host_compton_products_v1(
-            context->host_adapter, incident_particle,
+            context->host_adapter, transport_incident,
             &primary.photon_attenuation, &interaction,
             scattered_photon_particle_id, electron_particle_id, &compton,
             diagnostic, diagnostic_capacity);

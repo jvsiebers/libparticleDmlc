@@ -24,6 +24,18 @@ set(
     CACHE FILEPATH
     "Synthetic startup SQLite artifact used by configured source tests"
 )
+set(
+    MCDOSE_PARTICLE_DMLC_TEST_CORRECTED_SOURCE_STARTUP_ARTIFACT
+    ""
+    CACHE FILEPATH
+    "Synthetic startup artifact bound to the output-correction test"
+)
+set(
+    MCDOSE_PARTICLE_DMLC_TEST_SOURCE_OUTPUT_CORRECTION_ARTIFACT
+    ""
+    CACHE FILEPATH
+    "Python-created source-output correction used by configured tests"
+)
 
 add_library(
     mcdose_particle_dmlc_native
@@ -103,6 +115,29 @@ target_link_libraries(
 )
 set_target_properties(
     mcdose_particle_dmlc_host_adapter
+    PROPERTIES VERSION ${PROJECT_VERSION} SOVERSION 1
+)
+
+add_library(
+    mcdose_particle_dmlc_source_output_correction
+    SHARED
+    integration/source_output_correction_v1.cpp
+)
+target_compile_features(
+    mcdose_particle_dmlc_source_output_correction PUBLIC cxx_std_17
+)
+target_compile_definitions(
+    mcdose_particle_dmlc_source_output_correction
+    PRIVATE MCDOSE_PARTICLE_DMLC_BUILD
+)
+target_include_directories(
+    mcdose_particle_dmlc_source_output_correction
+    PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:include>
+)
+set_target_properties(
+    mcdose_particle_dmlc_source_output_correction
     PROPERTIES VERSION ${PROJECT_VERSION} SOVERSION 1
 )
 
@@ -186,6 +221,7 @@ if(MCDOSE_PARTICLE_DMLC_BUILD_STARTUP_LOADER)
             mcdose_particle_dmlc_startup_loader
             mcdose_particle_dmlc_host_adapter
             mcdose_particle_dmlc_egsnrc_adapter
+            mcdose_particle_dmlc_source_output_correction
     )
     set_target_properties(
         mcdose_particle_dmlc_egsnrc_source
@@ -230,6 +266,9 @@ if(MSVC)
     target_compile_options(mcdose_particle_dmlc_native PRIVATE /W4 /WX)
     target_compile_options(mcdose_particle_dmlc_host_adapter PRIVATE /W4 /WX)
     target_compile_options(mcdose_particle_dmlc_egsnrc_adapter PRIVATE /W4 /WX)
+    target_compile_options(
+        mcdose_particle_dmlc_source_output_correction PRIVATE /W4 /WX
+    )
     if(TARGET mcdose_particle_dmlc_startup_loader)
         target_compile_options(
             mcdose_particle_dmlc_startup_loader PRIVATE /W4 /WX
@@ -249,6 +288,10 @@ else()
     )
     target_compile_options(
         mcdose_particle_dmlc_egsnrc_adapter PRIVATE -Wall -Wextra -Wpedantic -Werror
+    )
+    target_compile_options(
+        mcdose_particle_dmlc_source_output_correction
+        PRIVATE -Wall -Wextra -Wpedantic -Werror
     )
     if(TARGET mcdose_particle_dmlc_startup_loader)
         target_compile_options(
@@ -325,6 +368,29 @@ if(BUILD_TESTING)
         test_particle_dmlc_egsnrc_adapter_v1 PRIVATE mcdose_particle_dmlc_egsnrc_adapter
     )
     add_test(NAME particle_dmlc_egsnrc_adapter_v1 COMMAND test_particle_dmlc_egsnrc_adapter_v1)
+    add_executable(
+        test_particle_dmlc_source_output_correction_v1
+        tests/test_source_output_correction_v1.cpp
+    )
+    target_compile_features(
+        test_particle_dmlc_source_output_correction_v1 PRIVATE cxx_std_17
+    )
+    target_link_libraries(
+        test_particle_dmlc_source_output_correction_v1
+        PRIVATE mcdose_particle_dmlc_source_output_correction
+    )
+    add_test(
+        NAME particle_dmlc_source_output_correction_v1
+        COMMAND test_particle_dmlc_source_output_correction_v1
+    )
+    if(EXISTS "${MCDOSE_PARTICLE_DMLC_TEST_SOURCE_OUTPUT_CORRECTION_ARTIFACT}")
+        add_test(
+            NAME particle_dmlc_source_output_correction_artifact_v1
+            COMMAND
+                test_particle_dmlc_source_output_correction_v1
+                "${MCDOSE_PARTICLE_DMLC_TEST_SOURCE_OUTPUT_CORRECTION_ARTIFACT}"
+        )
+    endif()
     if(TARGET mcdose_particle_dmlc_startup_loader)
         add_executable(
             test_particle_dmlc_startup_loader_v1
@@ -362,6 +428,30 @@ if(BUILD_TESTING)
                 STATUS
                 "Configured EGSnrc source test is not registered: "
                 "MCDOSE_PARTICLE_DMLC_TEST_SOURCE_STARTUP_ARTIFACT is absent"
+            )
+        endif()
+        if(
+            EXISTS "${MCDOSE_PARTICLE_DMLC_TEST_CORRECTED_SOURCE_STARTUP_ARTIFACT}"
+            AND EXISTS "${MCDOSE_PARTICLE_DMLC_TEST_SOURCE_OUTPUT_CORRECTION_ARTIFACT}"
+        )
+            add_executable(
+                test_particle_dmlc_egsnrc_source_output_correction_v1
+                tests/test_egsnrc_source_output_correction_v1.cpp
+            )
+            target_compile_features(
+                test_particle_dmlc_egsnrc_source_output_correction_v1
+                PRIVATE cxx_std_17
+            )
+            target_link_libraries(
+                test_particle_dmlc_egsnrc_source_output_correction_v1
+                PRIVATE mcdose_particle_dmlc_egsnrc_source
+            )
+            add_test(
+                NAME particle_dmlc_egsnrc_source_output_correction_v1
+                COMMAND
+                    test_particle_dmlc_egsnrc_source_output_correction_v1
+                    "${MCDOSE_PARTICLE_DMLC_TEST_CORRECTED_SOURCE_STARTUP_ARTIFACT}"
+                    "${MCDOSE_PARTICLE_DMLC_TEST_SOURCE_OUTPUT_CORRECTION_ARTIFACT}"
             )
         endif()
     endif()
@@ -423,6 +513,7 @@ install(
         mcdose_particle_dmlc_native
         mcdose_particle_dmlc_host_adapter
         mcdose_particle_dmlc_egsnrc_adapter
+        mcdose_particle_dmlc_source_output_correction
 )
 if(TARGET mcdose_particle_dmlc_egsnrc_mortran_bridge)
     install(TARGETS mcdose_particle_dmlc_egsnrc_mortran_bridge)
@@ -448,6 +539,7 @@ install(
         include/mcdose_particle_dmlc_egsnrc_mortran_bridge_v1.h
         include/mcdose_particle_dmlc_startup_v1.h
         include/mcdose_particle_dmlc_egsnrc_source_v1.h
+        include/mcdose_particle_dmlc_source_output_correction_v1.h
     DESTINATION include
 )
 install(
