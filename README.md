@@ -66,7 +66,7 @@ Currently, will put libraries in x86_64-linux directory.  Update Makefile(s) to 
 
 4. Run the test program
 ```bash
-   cd testRun
+   cd particleDmlc++Demo/testRun
    ./runTests
    ```
 
@@ -94,6 +94,99 @@ For your use, you will need to write some code to get the CP weight info into th
 The information about the leaf sequences does not need to come from a .dml/.dma file.  It could come directly from the
 DICOM plan file.  (I think I have some code, not included here) that directly uses DICOM (or, at least converts the
 DICOM to .dml).    For efficiency in releasing this code, it is not included here.
+
+The `native` subdirectory begins the replacement interface used by modern callers. It accepts a versioned,
+array-based delivery record and deliberately contains no DICOM or DML parser. Configure it independently with
+`cmake -S native -B build/native`, then build and run its tests with CMake/CTest. The legacy Makefile and demo remain
+available as behavioral references while transport is moved behind this boundary.
+
+The boundary implements the commissioned particleDmlc equivalent-thickness
+model directly. It classifies the two MLC sections, samples forced interaction
+in their summed longitudinal thickness, attenuates a forward scattered photon
+through `remaining thickness / w`, and applies the historical infinitely-thin-
+MLC reference-plane projection. This model uses the existing section tables and
+does not require physical placement of each MLC material plane. A non-forward
+scattered photon returns explicit empty state. Generic material-path
+attenuation, deterministic propagation, and exact-interval location are also
+available as optional extension points for an alternate solid-geometry model.
+
+The production primary finalizer attenuates photons through the same summed
+equivalent thickness. Incident electrons and positrons pass unchanged only
+through zero thickness and are otherwise discarded. Generated Compton
+electrons are used to close the sampled energy and momentum record but are not
+retained by the first-release run policy; the historical fixed `20.6 MeV/cm`
+energy-loss approximation is not part of the maintained implementation.
+
+The native build also produces separate host and EGSnrc adapter libraries. The host adapter owns bounded product
+queues and host-random callbacks. The EGSnrc adapter converts the native charged-particle kinetic-energy convention
+to explicit EGSnrc total-energy stack entries, retains region/latch/lineage sidecars, and provides a bounded LIFO
+test context. Its provenance-tagged dispatcher passes primary and scattered-photon entries to one synchronous host
+callback and discards generated Compton electrons under the first-release policy. An optional target compiles that
+callback against a selected EGSnrc `egs_config1.h`. The supplied Mortran routine owns the only common-block action:
+it sets `LATCHI` immediately before calling `SHOWER`. The same target exports a configured Fortran scalar entry
+point that accepts explicit lineage, product kind, and electron rest mass before invoking the validated dispatcher.
+An isolated Fox DOSXYZ probe routes photon, electron, and positron basis particles through this round trip with
+release and sanitizer dose output byte-identical to stock DOSXYZ. The transport core does not map Fortran common
+blocks.
+
+The host-adapter library also exports a versioned producer context. It deep-
+copies one DICOM-derived delivery record and commissioned machine, selects one
+explicit MLC device, samples the caller's exact fractional MU once, and queues
+tagged primary then scattered-photon output. It uses libParticleDmlc's
+commissioned leaf-equivalent-thickness tables directly; callers do not provide
+physical z locations for individual MLC planes. The producer reports exact
+host-random consumption and explicit generated-Compton-electron discard. Static
+jaws remain the responsibility of upstream BEAM transport. When either DICOM
+jaw pair moves, the producer samples one X and one Y pair at the same fractional
+MU and applies the reviewed legacy ideal-aperture approximation at the incident
+particle plane; a jaw-blocked particle consumes no random values and produces
+an empty queue. The producer leaves the queue empty after any failed production
+call. C++ release and ASan/UBSan tests plus a Python/shared-library acceptance
+probe exercise this boundary.
+
+An optional `MCDOSE_PARTICLE_DMLC_BUILD_STARTUP_LOADER=ON` target links SQLite
+3.37 or newer outside the transport core. It strictly loads the versioned
+Python-created delivery/machine artifact, verifies its complete canonical
+payload SHA-256, calls the same deep-copying producer constructor, and releases
+all database and parsing storage before transport. Release and sanitizer-linked
+acceptance cover valid producer execution plus altered provenance, schema, and
+application identity.
+
+Enabling both the startup loader and EGSnrc Mortran bridge also builds
+`mcdose_particle_dmlc_egsnrc_source_mortran_bridge`. It owns one startup-loaded
+source context, calls EGSnrc's random stream on demand, converts configured
+Fortran scalar widths, and returns exactly one queued product per call. Native
+failures include bounded diagnostics and the incident scalar values. The
+companion `mcdose_particle_dmlc_source_v1.mortran` keeps the opaque handle in a
+small dedicated common block and does not map the DOSXYZ stack. The configured
+bridge test also requires exact weight preservation for an open transport path.
+Configured CTest runs set
+`MCDOSE_PARTICLE_DMLC_TEST_SOURCE_STARTUP_ARTIFACT` to a generated synthetic
+startup database; CMake reports when those artifact-dependent tests are not
+registered.
+
+`native/integration/egsnrc_dosxyznrc_source21_v1.patch` is pinned to EGSnrc
+commit `9edee3ebfda3d81d0e8eb033a7e76bf9a70e41ef`. It adds the explicit
+`mcdose_particle_dmlc` source-21 token, forwards BEAM's scoring-plane ray and
+exact fractional MU, drains the native queue before sampling BEAM again, and
+preserves the queue and fractional MU across DOSXYZ parallel scheduler chunks.
+Stock reset behavior remains unchanged for source 20 and non-native source 21.
+The patch leaves the normal DOSXYZ transform and `SHOWER` call in place and is
+an EGSnrc-derived AGPL integration artifact. It applies with zero fuzz and passes
+complete Mortran preprocessing, Fortran compilation, release linking, and
+configured release/sanitizer scalar tests in an isolated tree. Complete
+synthetic runs under fresh WSL and Fox configurations also transport all 100
+BEAM products through the native path into DOSXYZ with zero misses or blocks;
+their finite 41 x 41 x 80 dose files are byte-identical. The files under
+`native/tests/fixtures` are wiring-smoke inputs only; they are not commissioned
+or dosimetric reference data.
+
+A deidentified three-beam HFS commissioned-input smoke also completes this
+native path on Fox with two DOSXYZ workers per beam. All six workers transport
+their requested histories over full-CT calculation grids, report zero geometry
+misses, and produce `.pardose` normalization counts that exactly match the BEAM
+primary-history counts. This is integration and accounting evidence, not
+statistical convergence, absolute-dose validation, or clinical commissioning.
 
 libparticleDmlc is most efficiently used w/o reading/writing phase space files.  Instead directly it into your
 source head model.  Take your particle type, convert it to the particle type expected by the code, run the particle,

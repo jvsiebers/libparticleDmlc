@@ -317,7 +317,8 @@ int pdmlcDemo::pDmlcProcessPhaseSpaceIO(){
     if(OK != readEGSPhspParticle(&psHeader,&part,psFilePointer)) {
       cout << "ERROR: could not create particle " << iParticle << endl; return(FAIL);
     }
-    /// 
+    part.z = psdZPlane;
+    ///
     /// re-initialize weight for scat and comptonElectron each time so not hang around from last iteration
     scat.weight = comptonElectron.weight = 0.0;
     /// transport the particle

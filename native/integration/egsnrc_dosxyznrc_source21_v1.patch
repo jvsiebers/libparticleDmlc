@@ -1,0 +1,165 @@
+diff --git a/Makefile b/Makefile
+--- a/Makefile
++++ b/Makefile
+@@ -52,8 +52,15 @@ RANDOM = $(EGS_SOURCEDIR)ranmar
+ 
+ USER_CODE = dosxyznrc
+ 
++MCDOSE_PARTICLE_DMLC_BUILD ?=
++MCDOSE_PARTICLE_DMLC_SOURCE_BRIDGE = $(MCDOSE_PARTICLE_DMLC_BUILD)/libmcdose_particle_dmlc_egsnrc_source_mortran_bridge.a
++
+ EGS_EXTRA_OBJECTS = $(CUTIL_OBJECTS) $(PARDOSE_OBJECTS) $(BEAMLIB_OBJECTS) $(BEAM_OBJECTS) $(VCULIB_OBJECTS)
+-EGS_EXTRA_LIBS = $(FLIBS) $(BEAMLIB_EXTRA_LIBS)
++EGS_EXTRA_LIBS = $(FLIBS) $(BEAMLIB_EXTRA_LIBS) \
++                 $(MCDOSE_PARTICLE_DMLC_SOURCE_BRIDGE) \
++                 -L$(MCDOSE_PARTICLE_DMLC_BUILD) \
++                 -Wl,-rpath,$(MCDOSE_PARTICLE_DMLC_BUILD) \
++                 -lmcdose_particle_dmlc_egsnrc_source -lstdc++
+ 
+ SOURCES = $(EGS_SOURCEDIR)egsnrc.macros \
+           $(EGS_UTILS)timing.macros \
+@@ -62,6 +69,7 @@ SOURCES = $(EGS_SOURCEDIR)egsnrc.macros \
+           $(EGS_SOURCEDIR)transportp.macros \
+           $(EGS_SOURCEDIR)pegs4_macros.mortran \
+           $(EGS_UTILS)phsp_macros.mortran $(IAEA_PHSP_MACROS)\
++          mcdose_particle_dmlc_source_v1.mortran \
+           $(USER_CODE).mortran \
+           $(EGS_SOURCEDIR)get_inputs.mortran \
+           $(EGS_SOURCEDIR)get_media_inputs.mortran $(MACHINE_MORTRAN) \
+diff --git a/srcxyznrc.macros b/srcxyznrc.macros
+--- a/srcxyznrc.macros
++++ b/srcxyznrc.macros
+@@ -184,7 +184,8 @@ REPLACE {;COMIN/SOURCE/;} WITH {
+              "2 => particles of any charge (for isource = 9 only)	       "
+     SHLflag, "1 => send particle shared lib, 0 => no shared lib (isource=20)   "
+     calflag, "0 => perform calibration run, 1 => no calib run (isource=20)     "
+-    MLCflag, "1 => send particles through MLC, 0 => no MLC   (isource=20,21)   "
++    MLCflag, "MLC mode (source 20/21):"
++             "0 none, 1 legacy library, 2 native mcdose bridge"
+     ixinl,   "Index of lower x-boundary of beam                  (isource=0,6) "
+     ixinu,   "Index of upper x-boundary of beam                  (isource=0,6) "
+     jyinl,   "Index of lower y-boundary of beam                  (isource=0,6) "
+diff --git a/srcxyznrc.mortran b/srcxyznrc.mortran
+--- a/srcxyznrc.mortran
++++ b/srcxyznrc.mortran
+@@ -2274,6 +2274,10 @@ ELSEIF( (enflag = 2) | (enflag = 3) )["phase space input or full BEAM sim."
+ 	"no MLC
+ 	MLCflag = 0;
+     ]
++    ELSEIF(the_vcu_code='mcdose_particle_dmlc')[
++        "native startup-artifact source bridge
++        MLCflag = 2;
++    ]
+     ELSE[
+ 	"particles must go through MLC code compiled as a shared library
+ 	MLCflag = 1;
+@@ -2428,13 +2432,13 @@ subroutine srcinit(weight);
+ "
+ "**************************************************************************"
+ implicit none;
+-;COMIN/GEOM,PHSPFILE,SOURCE,EGS-IO,RWPHSP/;
++;COMIN/GEOM,PHSPFILE,SOURCE,EGS-IO,RWPHSP,USEFUL/;
+ 
+ $REAL weight,
+       costheta,sintheta,
+       coscol,sincol,
+       cosphi,sinphi;
+-$INTEGER i;
++$INTEGER i, status_mcdose, beam_number_mcdose, mlc_device_index_mcdose;
+ 
+ OUTPUT61;(' ');
+ 
+@@ -2755,12 +2759,25 @@ ELSEIF(isource = 21)["Full BEAM sim. incident from multiple settings and "
+    survival_ratio = 1; "set to 1 to let vcu code know
+ 			"not to run calibration run or if not using MLC
+ 			"to set survival_ratio to 1
+-   IF(MLCflag = 1)
+-   [
++   IF(MLCflag = 1)[
+ 	OUTPUT 'About to initialise MLC code...';(//a);
+ 	call init_vcusource(survival_ratio,$CONFIGURATION_NAME,hen_house,
+ 			egs_home,the_vcu_code,the_vcu_input_file);
+    ]
++   ELSEIF(MLCflag = 2)[
++        status_mcdose = -1;
++        call mcdose_particle_dmlc_dosxyz_init_v1(
++            prm, beam_number_mcdose, mlc_device_index_mcdose,
++            status_mcdose);
++        IF(status_mcdose ~= 0)[
++            OUTPUT61 status_mcdose;
++            (/' Native particleDmlc initialization failed with status ',I8/);
++            STOP;
++        ]
++        OUTPUT61 beam_number_mcdose,mlc_device_index_mcdose;
++        (/' Native particleDmlc initialized for beam ',I8,
++          ', DICOM MLC device index ',I8/);
++   ]
+    ELSE[
+ 	OUTPUT61;
+ 	(/'No external library MLC'/);
+@@ -3401,7 +3418,8 @@ $REAL RBEAM,DIST_RAY;
+ $INTEGER ix,jy,kz,i,j,k,
+          irin, "region of incident particle"
+          latchi, "input latch value"
+-         ibit;
++         ibit, begin_new_particle_mcdose,
++         status_mcdose;
+ $LONG_INT n_hist_dum;
+ 
+ save wsrc; "in case of phsp particle recycling"
+@@ -4060,7 +4078,7 @@ LOOP [;
+ 
+ 	]
+ 
+-	IF(MLCflag=1)["if there is an MLC, pass particles through it
++	IF(MLCflag=1)["pass particles through the legacy MLC library
+ 		call sample_vcusource(einsrc,xsrc,ysrc,zsrcdum,usrc,
+ 			vsrc,wsrc,weight,iqin,latchi,n_hist_dum,
+ 			more_in_cont,frMU_indx);
+@@ -4070,6 +4088,21 @@ LOOP [;
+ 				"more_in_cont=0;"
+ 			"]"
+ 	]
++        ELSEIF(MLCflag=2)["pass one product through the native source bridge
++            begin_new_particle_mcdose = 0;
++            IF(more_in_cont=0) begin_new_particle_mcdose = 1;
++            status_mcdose = -1;
++            call mcdose_particle_dmlc_dosxyz_sample_v1(
++                begin_new_particle_mcdose, iqin, einsrc,
++                xsrc, ysrc, zsrcdum, usrc, vsrc, wsrc,
++                weight, latchi, frMU_indx, more_in_cont,
++                status_mcdose);
++            IF(status_mcdose ~= 0)[
++                OUTPUT61 status_mcdose;
++                (/' Native particleDmlc sampling failed with status ',I8/);
++                STOP;
++            ]
++        ]
+ 
+ 
+         IF( iqinc < 2 & iqin ~= iqinc ) [
+diff --git a/dosxyznrc.mortran b/dosxyznrc.mortran
+--- a/dosxyznrc.mortran
++++ b/dosxyznrc.mortran
+@@ -2612,8 +2612,9 @@
+ 
+ :start_parallel_loop:;
+ 
+-IF(isource = 20 | isource = 21)["reset more_in_cont and MU index for every"
+-	   "chunk"
++IF(isource = 20 | (isource = 21 & MLCflag ~= 2))[
++	   "reset legacy container state for every scheduler chunk; native"
++	   "source-21 products must drain across chunk boundaries"
+ 	   more_in_cont=0;
+ 	   frMU_indx=-1.0;
+ ]
+@@ -3476,6 +3477,9 @@ IF(isource=9 | isource=21 | (isource=20 &
+ SHLflag=1 & MLCflag=0)) call finish_beamsource;
+ 
+ IF((isource=20 | isource = 21) & MLCflag=1) [call finish_vcusource;]
++IF(isource=21 & MLCflag=2) [
++    call mcdose_particle_dmlc_dosxyz_finish_v1;
++]
+ 
+ $CALL_EXIT(0);
+ 

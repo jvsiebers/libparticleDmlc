@@ -16,7 +16,7 @@ compile_libs:
 	done
 
 # Step 2: Compile the demo
-compile_demo:
+compile_demo: compile_libs
 	@echo "Compiling particleDmlc++Demo..."
 	$(MAKE) -C $(DEMO)
 

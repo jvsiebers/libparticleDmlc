@@ -86,7 +86,7 @@ clean:
 ARCH=$(shell echo `uname -p`-`uname -s` | tr '[:upper:]' '[:lower:]')
 LIB_LOCAL = ../${ARCH}
 
-install:
+install: $(LIBRARIES)
 	@echo installing libraries to $(LIB_LOCAL)
 	@echo -n; if [ -d $(LIB_LOCAL) ]; then true; else mkdir $(LIB_LOCAL); fi
 	@echo -n; for LNAME in $(LIBRARIES); do cp -p $${LNAME} ${LIB_LOCAL}; done

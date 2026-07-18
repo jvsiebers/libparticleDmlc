@@ -1,0 +1,57 @@
+subroutine mcdose_particle_dmlc_dispatch_primary_v1(
+    iq_mcdose, e_mcdose, x_mcdose, y_mcdose, z_mcdose,
+    u_mcdose, v_mcdose, w_mcdose, ir_mcdose, wt_mcdose,
+    latch_mcdose, source_sequence_mcdose, rest_mass_mcdose);
+
+$IMPLICIT-NONE;
+$INTEGER iq_mcdose, ir_mcdose, latch_mcdose,
+         product_kind_mcdose, dispatched_mcdose, discarded_mcdose,
+         status_mcdose;
+$LONG_INT source_sequence_mcdose, history_id_mcdose, particle_id_mcdose,
+          parent_id_mcdose;
+$ENERGY PRECISION e_mcdose, rest_mass_mcdose;
+$REAL x_mcdose, y_mcdose, z_mcdose, u_mcdose, v_mcdose, w_mcdose,
+      wt_mcdose;
+
+history_id_mcdose = source_sequence_mcdose;
+particle_id_mcdose = source_sequence_mcdose;
+parent_id_mcdose = 0;
+product_kind_mcdose = 1;
+dispatched_mcdose = 0;
+discarded_mcdose = 0;
+status_mcdose = 0;
+call mcdose_particle_dmlc_dispatch_shower_v1(
+    iq_mcdose, e_mcdose, x_mcdose, y_mcdose, z_mcdose,
+    u_mcdose, v_mcdose, w_mcdose, ir_mcdose, wt_mcdose,
+    latch_mcdose, history_id_mcdose, particle_id_mcdose,
+    parent_id_mcdose, product_kind_mcdose, rest_mass_mcdose,
+    dispatched_mcdose, discarded_mcdose, status_mcdose);
+if (status_mcdose ~= 0 | dispatched_mcdose ~= 1 |
+    discarded_mcdose ~= 0) [
+    OUTPUT status_mcdose, dispatched_mcdose, discarded_mcdose;
+      (' mcdose EGSnrc dispatch failed: status=',I10,
+       ', dispatched=',I3,', discarded=',I3);
+    $CALL_EXIT(1);
+]
+return;
+end;
+
+subroutine mcdose_particle_dmlc_shower_v1(
+    iq_mcdose, e_mcdose, x_mcdose, y_mcdose, z_mcdose,
+    u_mcdose, v_mcdose, w_mcdose, ir_mcdose, wt_mcdose,
+    latch_mcdose, status_mcdose);
+
+$IMPLICIT-NONE;
+;COMIN/STACK/;
+
+$INTEGER iq_mcdose, ir_mcdose, latch_mcdose, status_mcdose;
+$ENERGY PRECISION e_mcdose;
+$REAL x_mcdose, y_mcdose, z_mcdose, u_mcdose, v_mcdose, w_mcdose,
+      wt_mcdose;
+
+status_mcdose = 0;
+LATCHI = latch_mcdose;
+call shower(iq_mcdose, e_mcdose, x_mcdose, y_mcdose, z_mcdose,
+            u_mcdose, v_mcdose, w_mcdose, ir_mcdose, wt_mcdose);
+return;
+end;

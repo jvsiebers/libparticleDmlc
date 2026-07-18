@@ -1,0 +1,79 @@
+subroutine mcdose_particle_dmlc_source_random_v1(
+    uniform_random_mcdose, status_mcdose);
+
+$IMPLICIT-NONE;
+
+;COMIN/RANDOM/;
+
+$REAL uniform_random_mcdose;
+$INTEGER status_mcdose;
+
+$RANDOMSET uniform_random_mcdose;
+status_mcdose = 0;
+return;
+end;
+
+subroutine mcdose_particle_dmlc_dosxyz_init_v1(
+    electron_rest_mass_mcdose, beam_number_mcdose,
+    mlc_device_index_mcdose, status_mcdose);
+
+$IMPLICIT-NONE;
+
+$REAL electron_rest_mass_mcdose;
+$INTEGER beam_number_mcdose, mlc_device_index_mcdose, status_mcdose;
+$LONG_INT source_handle_mcdose;
+common/mcdose_pdmlc_source_v1/source_handle_mcdose;
+
+call mcdose_particle_dmlc_source_init_v1(
+    source_handle_mcdose, electron_rest_mass_mcdose,
+    beam_number_mcdose, mlc_device_index_mcdose, status_mcdose);
+return;
+end;
+
+subroutine mcdose_particle_dmlc_dosxyz_sample_v1(
+    begin_new_particle_mcdose, iq_mcdose, total_energy_mcdose,
+    x_mcdose, y_mcdose, z_mcdose, u_mcdose, v_mcdose, w_mcdose,
+    weight_mcdose, latch_mcdose, fractional_meterset_mcdose,
+    remaining_product_count_mcdose, status_mcdose);
+
+$IMPLICIT-NONE;
+
+$REAL total_energy_mcdose, x_mcdose, y_mcdose, z_mcdose,
+      u_mcdose, v_mcdose, w_mcdose, weight_mcdose,
+      fractional_meterset_mcdose;
+$INTEGER begin_new_particle_mcdose, iq_mcdose, latch_mcdose,
+         remaining_product_count_mcdose, status_mcdose,
+         product_kind_mcdose, random_draw_count_mcdose;
+$LONG_INT source_handle_mcdose, history_id_mcdose,
+          particle_id_mcdose, parent_particle_id_mcdose;
+common/mcdose_pdmlc_source_v1/source_handle_mcdose;
+
+call mcdose_particle_dmlc_source_sample_v1(
+    source_handle_mcdose, begin_new_particle_mcdose, iq_mcdose,
+    total_energy_mcdose, x_mcdose, y_mcdose, z_mcdose,
+    u_mcdose, v_mcdose, w_mcdose, weight_mcdose, latch_mcdose,
+    fractional_meterset_mcdose, product_kind_mcdose,
+    remaining_product_count_mcdose, random_draw_count_mcdose,
+    history_id_mcdose, particle_id_mcdose, parent_particle_id_mcdose,
+    status_mcdose);
+return;
+end;
+
+subroutine mcdose_particle_dmlc_dosxyz_finish_v1;
+
+$IMPLICIT-NONE;
+
+$INTEGER status_mcdose;
+$LONG_INT source_handle_mcdose;
+common/mcdose_pdmlc_source_v1/source_handle_mcdose;
+
+IF(source_handle_mcdose = 0) return;
+call mcdose_particle_dmlc_source_finish_v1(
+    source_handle_mcdose, status_mcdose);
+IF(status_mcdose ~= 0) [
+    write(6,*) 'mcdose particleDmlc source finish failed:',
+               status_mcdose;
+    stop;
+]
+return;
+end;
