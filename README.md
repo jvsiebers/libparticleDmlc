@@ -139,10 +139,12 @@ host-random consumption and explicit generated-Compton-electron discard. Static
 jaws remain the responsibility of upstream BEAM transport. When either DICOM
 jaw pair moves, the producer samples one X and one Y pair at the same fractional
 MU and applies the reviewed legacy ideal-aperture approximation at the incident
-particle plane; a jaw-blocked particle consumes no random values and produces
-an empty queue. The producer leaves the queue empty after any failed production
-call. C++ release and ASan/UBSan tests plus a Python/shared-library acceptance
-probe exercise this boundary.
+particle plane. DICOM X jaw coordinates are already aligned with the BEAM
+transport X axis; DICOM Y is antiparallel to BEAM transport Y, so the producer
+negates and swaps the Y banks before aperture testing. A jaw-blocked particle
+consumes no random values and produces an empty queue. The producer leaves the
+queue empty after any failed production call. C++ release and ASan/UBSan tests
+plus a Python/shared-library acceptance probe exercise this boundary.
 
 An optional `MCDOSE_PARTICLE_DMLC_BUILD_STARTUP_LOADER=ON` target links SQLite
 3.37 or newer outside the transport core. It strictly loads the versioned

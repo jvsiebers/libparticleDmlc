@@ -316,6 +316,8 @@ int main() {
 
     value.bank_1[4] = -1.0;
     value.bank_2[4] = 1.0;
+    value.bank_1[5] = -1.0;
+    value.bank_2[5] = 4.0;
     context = nullptr;
     CHECK(mcdose_particle_dmlc_create_producer_context_v1(
               &value.delivery, &value.machine, &producer_config, &context,
@@ -344,6 +346,19 @@ int main() {
               context, &jaw_blocked_product, diagnostic, sizeof(diagnostic)) ==
           MCDOSE_PARTICLE_DMLC_STATUS_OK);
     CHECK(jaw_blocked_product.has_product == 0);
+
+    auto y_jaw_blocked = particle(MCDOSE_PARTICLE_DMLC_ELECTRON, 0.0, 0.75);
+    auto y_jaw_blocked_summary = summary();
+    CHECK(mcdose_particle_dmlc_produce_v1(
+              context, &y_jaw_blocked, 1.0, 0, 0, &y_jaw_blocked_summary,
+              diagnostic, sizeof(diagnostic)) ==
+          MCDOSE_PARTICLE_DMLC_STATUS_OK);
+    CHECK(y_jaw_blocked_summary.retained_product_count == 0);
+    auto y_jaw_blocked_product = product();
+    CHECK(mcdose_particle_dmlc_next_producer_product_v1(
+              context, &y_jaw_blocked_product, diagnostic,
+              sizeof(diagnostic)) == MCDOSE_PARTICLE_DMLC_STATUS_OK);
+    CHECK(y_jaw_blocked_product.has_product == 0);
 
     auto invalid_position = jaw_blocked;
     invalid_position.position_cm[0] = std::nan("");

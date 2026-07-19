@@ -74,8 +74,10 @@ typedef struct mcdose_particle_dmlc_producer_product_v1 {
  * model. If either DICOM jaw pair moves between control points, the producer
  * requires one single-pair X jaw and one single-pair Y jaw and applies their
  * interpolated openings as an ideal aperture at the incident particle's
- * positive-Z source plane. This intentionally reproduces the reviewed legacy
- * jaw-tracking approximation without double-filtering static jaws.
+ * positive-Z source plane. DICOM X is aligned with BEAM transport X; DICOM Y
+ * is antiparallel to BEAM transport Y and is negated with its banks exchanged.
+ * This intentionally reproduces the reviewed legacy jaw-tracking approximation
+ * without double-filtering static jaws.
  */
 MCDOSE_PARTICLE_DMLC_API int32_t
 mcdose_particle_dmlc_create_producer_context_v1(

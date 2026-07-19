@@ -209,10 +209,11 @@ bool blocked_by_tracked_jaws(
         context->bank_1_positions_cm[context->x_jaw_opening_offset] * scale;
     const double x_max =
         context->bank_2_positions_cm[context->x_jaw_opening_offset] * scale;
+    // IEC beam-limiting-device Y is antiparallel to the BEAM transport Y axis.
     const double y_min =
-        context->bank_1_positions_cm[context->y_jaw_opening_offset] * scale;
+        -context->bank_2_positions_cm[context->y_jaw_opening_offset] * scale;
     const double y_max =
-        context->bank_2_positions_cm[context->y_jaw_opening_offset] * scale;
+        -context->bank_1_positions_cm[context->y_jaw_opening_offset] * scale;
     return particle->position_cm[0] < x_min ||
            particle->position_cm[0] > x_max ||
            particle->position_cm[1] < y_min ||
