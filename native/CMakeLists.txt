@@ -334,6 +334,7 @@ endif()
 
 include(CTest)
 if(BUILD_TESTING)
+    find_package(Threads REQUIRED)
     add_executable(test_particle_dmlc_delivery_v1 tests/test_delivery_v1.cpp)
     target_compile_features(test_particle_dmlc_delivery_v1 PRIVATE cxx_std_17)
     target_link_libraries(test_particle_dmlc_delivery_v1 PRIVATE mcdose_particle_dmlc_native)
@@ -359,7 +360,8 @@ if(BUILD_TESTING)
     add_executable(test_particle_dmlc_producer_v1 tests/test_producer_v1.cpp)
     target_compile_features(test_particle_dmlc_producer_v1 PRIVATE cxx_std_17)
     target_link_libraries(
-        test_particle_dmlc_producer_v1 PRIVATE mcdose_particle_dmlc_host_adapter
+        test_particle_dmlc_producer_v1
+        PRIVATE mcdose_particle_dmlc_host_adapter Threads::Threads
     )
     add_test(NAME particle_dmlc_producer_v1 COMMAND test_particle_dmlc_producer_v1)
     add_executable(test_particle_dmlc_egsnrc_adapter_v1 tests/test_egsnrc_adapter_v1.cpp)

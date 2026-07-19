@@ -66,6 +66,11 @@ typedef struct mcdose_particle_dmlc_producer_product_v1 {
  * deep-copied. mlc_device_index is zero-based and must select a DICOM MLC pair
  * device compatible with the machine motion axis and leaf-pair count.
  *
+ * A producer context and its callback user data are mutable and must not be
+ * used concurrently. Independent contexts may be called concurrently,
+ * including when constructed from the same immutable delivery and machine
+ * definitions.
+ *
  * The production path uses libParticleDmlc's commissioned equivalent-thickness
  * model. It does not require caller-supplied physical intervals or individual
  * physical leaf-plane locations.

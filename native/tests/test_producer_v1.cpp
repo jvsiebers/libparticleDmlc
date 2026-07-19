@@ -1,8 +1,13 @@
 #include "mcdose_particle_dmlc_producer_v1.h"
 
+#include <array>
+#include <atomic>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
+#include <memory>
+#include <thread>
+#include <vector>
 
 #define CHECK(condition)                                                       \
     do {                                                                       \
@@ -10,6 +15,13 @@
             std::fprintf(stderr, "check failed: %s at %s:%d\n", #condition,  \
                          __FILE__, __LINE__);                                  \
             return 1;                                                          \
+        }                                                                      \
+    } while (false)
+
+#define WORKER_CHECK(condition)                                                \
+    do {                                                                       \
+        if (!(condition)) {                                                    \
+            return __LINE__;                                                   \
         }                                                                      \
     } while (false)
 
@@ -182,6 +194,186 @@ int32_t next_random(void *user_data, double *uniform_random) {
     ++state->next_value;
     return MCDOSE_PARTICLE_DMLC_STATUS_OK;
 }
+
+struct sampled_weight_state {
+    double factor;
+    size_t callback_count;
+};
+
+int32_t sampled_weight(
+    void *user_data,
+    const mcdose_particle_dmlc_sampled_state_v1 *sampled_state,
+    const double *bank_1_positions_cm,
+    const double *bank_2_positions_cm,
+    uint64_t position_count,
+    double *weight_factor,
+    char *,
+    size_t) {
+    if (user_data == nullptr || sampled_state == nullptr ||
+        bank_1_positions_cm == nullptr || bank_2_positions_cm == nullptr ||
+        weight_factor == nullptr || position_count != 4 ||
+        sampled_state->source_segment_index != 0 ||
+        sampled_state->fractional_meterset != 0.25 ||
+        sampled_state->interpolation_fraction != 0.25) {
+        return MCDOSE_PARTICLE_DMLC_STATUS_VALIDATION_FAILED;
+    }
+    auto *state = static_cast<sampled_weight_state *>(user_data);
+    ++state->callback_count;
+    *weight_factor = state->factor;
+    return MCDOSE_PARTICLE_DMLC_STATUS_OK;
+}
+
+int run_concurrent_worker(
+    const fixture &value,
+    size_t worker_index,
+    std::atomic<size_t> &ready_worker_count,
+    std::atomic<bool> &start,
+    double &normalized_primary_weight,
+    double &normalized_scattered_weight) {
+    ready_worker_count.fetch_add(1, std::memory_order_release);
+    while (!start.load(std::memory_order_acquire)) {
+        std::this_thread::yield();
+    }
+
+    char diagnostic[256] = {};
+    auto producer_config = config(2);
+    mcdose_particle_dmlc_producer_context_v1 *raw_context = nullptr;
+    WORKER_CHECK(mcdose_particle_dmlc_create_producer_context_v1(
+                     &value.delivery, &value.machine, &producer_config,
+                     &raw_context, diagnostic, sizeof(diagnostic)) ==
+                 MCDOSE_PARTICLE_DMLC_STATUS_OK);
+    WORKER_CHECK(raw_context != nullptr);
+    using context_pointer = std::unique_ptr<
+        mcdose_particle_dmlc_producer_context_v1,
+        decltype(&mcdose_particle_dmlc_destroy_producer_context_v1)>;
+    context_pointer context(
+        raw_context, mcdose_particle_dmlc_destroy_producer_context_v1);
+
+    constexpr size_t iteration_count = 128;
+    constexpr size_t draws_per_iteration = 5;
+    std::vector<double> random_values(
+        iteration_count * draws_per_iteration, 0.5);
+    random_state random = {random_values.data(), random_values.size(), 0};
+    WORKER_CHECK(mcdose_particle_dmlc_set_producer_random_source_v1(
+                     context.get(), next_random, &random, diagnostic,
+                     sizeof(diagnostic)) == MCDOSE_PARTICLE_DMLC_STATUS_OK);
+    sampled_weight_state weight = {
+        1.0 + static_cast<double>(worker_index) / 100.0, 0};
+    WORKER_CHECK(mcdose_particle_dmlc_set_producer_sampled_weight_callback_v1(
+                     context.get(), sampled_weight, &weight, diagnostic,
+                     sizeof(diagnostic)) == MCDOSE_PARTICLE_DMLC_STATUS_OK);
+
+    for (size_t index = 0; index < iteration_count; ++index) {
+        auto incident =
+            particle(MCDOSE_PARTICLE_DMLC_PHOTON, 1.1, -0.5);
+        incident.history_id =
+            1 + worker_index * iteration_count + index;
+        incident.particle_id =
+            1 + (worker_index * iteration_count + index) * 3;
+        const uint64_t scattered_id = incident.particle_id + 1;
+        const uint64_t electron_id = incident.particle_id + 2;
+        auto produced = summary();
+        WORKER_CHECK(mcdose_particle_dmlc_produce_v1(
+                         context.get(), &incident, 0.25, scattered_id,
+                         electron_id, &produced, diagnostic,
+                         sizeof(diagnostic)) ==
+                     MCDOSE_PARTICLE_DMLC_STATUS_OK);
+        WORKER_CHECK(produced.retained_product_count == 2);
+        WORKER_CHECK(produced.random_draw_count == draws_per_iteration);
+        WORKER_CHECK(produced.primary_retained == 1);
+        WORKER_CHECK(produced.scattered_photon_retained == 1);
+        WORKER_CHECK(produced.generated_compton_electron_discarded == 1);
+
+        auto primary = product();
+        WORKER_CHECK(mcdose_particle_dmlc_next_producer_product_v1(
+                         context.get(), &primary, diagnostic,
+                         sizeof(diagnostic)) ==
+                     MCDOSE_PARTICLE_DMLC_STATUS_OK);
+        WORKER_CHECK(primary.has_product == 1);
+        WORKER_CHECK(primary.remaining_product_count == 1);
+        WORKER_CHECK(primary.product_kind ==
+                     MCDOSE_PARTICLE_DMLC_PRODUCER_PRIMARY);
+        WORKER_CHECK(primary.particle.history_id == incident.history_id);
+        WORKER_CHECK(primary.particle.particle_id == incident.particle_id);
+
+        auto scattered = product();
+        WORKER_CHECK(mcdose_particle_dmlc_next_producer_product_v1(
+                         context.get(), &scattered, diagnostic,
+                         sizeof(diagnostic)) ==
+                     MCDOSE_PARTICLE_DMLC_STATUS_OK);
+        WORKER_CHECK(scattered.has_product == 1);
+        WORKER_CHECK(scattered.remaining_product_count == 0);
+        WORKER_CHECK(scattered.product_kind ==
+                     MCDOSE_PARTICLE_DMLC_PRODUCER_SCATTERED_PHOTON);
+        WORKER_CHECK(scattered.particle.history_id == incident.history_id);
+        WORKER_CHECK(scattered.particle.particle_id == scattered_id);
+        WORKER_CHECK(scattered.particle.parent_particle_id ==
+                     incident.particle_id);
+
+        auto empty = product();
+        WORKER_CHECK(mcdose_particle_dmlc_next_producer_product_v1(
+                         context.get(), &empty, diagnostic,
+                         sizeof(diagnostic)) ==
+                     MCDOSE_PARTICLE_DMLC_STATUS_OK);
+        WORKER_CHECK(empty.has_product == 0);
+        if (index == 0) {
+            normalized_primary_weight = primary.particle.weight / weight.factor;
+            normalized_scattered_weight =
+                scattered.particle.weight / weight.factor;
+        } else {
+            WORKER_CHECK(primary.particle.weight / weight.factor ==
+                         normalized_primary_weight);
+            WORKER_CHECK(scattered.particle.weight / weight.factor ==
+                         normalized_scattered_weight);
+        }
+    }
+    WORKER_CHECK(random.next_value == iteration_count * draws_per_iteration);
+    WORKER_CHECK(weight.callback_count == iteration_count);
+    return 0;
+}
+
+int run_concurrent_context_test(const fixture &value) {
+    constexpr size_t worker_count = 8;
+    std::array<std::thread, worker_count> workers;
+    std::array<int, worker_count> worker_results = {};
+    std::array<double, worker_count> normalized_primary_weights = {};
+    std::array<double, worker_count> normalized_scattered_weights = {};
+    std::atomic<size_t> ready_worker_count = 0;
+    std::atomic<bool> start = false;
+
+    for (size_t worker_index = 0; worker_index < worker_count; ++worker_index) {
+        workers[worker_index] = std::thread([&, worker_index]() {
+            worker_results[worker_index] = run_concurrent_worker(
+                value, worker_index, ready_worker_count, start,
+                normalized_primary_weights[worker_index],
+                normalized_scattered_weights[worker_index]);
+        });
+    }
+    while (ready_worker_count.load(std::memory_order_acquire) < worker_count) {
+        std::this_thread::yield();
+    }
+    start.store(true, std::memory_order_release);
+    for (auto &worker : workers) {
+        worker.join();
+    }
+    for (size_t worker_index = 0; worker_index < worker_count; ++worker_index) {
+        if (worker_results[worker_index] != 0) {
+            std::fprintf(stderr, "concurrent worker %zu failed at line %d\n",
+                         worker_index, worker_results[worker_index]);
+            return 1;
+        }
+        if (std::fabs(normalized_primary_weights[worker_index] -
+                      normalized_primary_weights[0]) > 1.0e-12 ||
+            std::fabs(normalized_scattered_weights[worker_index] -
+                      normalized_scattered_weights[0]) > 1.0e-12) {
+            std::fprintf(stderr,
+                         "concurrent worker %zu produced a different weight\n",
+                         worker_index);
+            return 1;
+        }
+    }
+    return 0;
+}
 }  // namespace
 
 int main() {
@@ -313,6 +505,7 @@ int main() {
     CHECK(exhausted.next_value == 1);
 
     mcdose_particle_dmlc_destroy_producer_context_v1(context);
+    CHECK(run_concurrent_context_test(value) == 0);
 
     value.bank_1[4] = -1.0;
     value.bank_2[4] = 1.0;
