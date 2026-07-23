@@ -192,8 +192,15 @@ commit `9edee3ebfda3d81d0e8eb033a7e76bf9a70e41ef`. It adds the explicit
 exact fractional MU, drains the native queue before sampling BEAM again, and
 preserves the queue and fractional MU across DOSXYZ parallel scheduler chunks.
 Stock reset behavior remains unchanged for source 20 and non-native source 21.
-The patch leaves the normal DOSXYZ transform and `SHOWER` call in place and is
-an EGSnrc-derived AGPL integration artifact. It applies with zero fuzz and passes
+It also adds an opt-in source-2 patient-frame flag for IAEA files written after
+delivery transforms such as MLC transport. That mode preserves stored Z and
+both signs of W, disables only the source-plane W and `BEAM_SIZE` filters, and
+then applies the configured rotation and isocenter translation. The unflagged
+source-2 path is unchanged. This explicit mode replaces the legacy numeric
+source-102 convention without retaining its hidden semantics.
+
+The patch leaves the normal DOSXYZ `SHOWER` call in place and is an
+EGSnrc-derived AGPL integration artifact. It applies with zero fuzz and passes
 complete Mortran preprocessing, Fortran compilation, release linking, and
 configured release/sanitizer scalar tests in an isolated tree. Complete
 synthetic runs under fresh WSL and Fox configurations also transport all 100

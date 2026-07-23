@@ -29,19 +29,69 @@ diff --git a/Makefile b/Makefile
 diff --git a/srcxyznrc.macros b/srcxyznrc.macros
 --- a/srcxyznrc.macros
 +++ b/srcxyznrc.macros
-@@ -184,7 +184,8 @@ REPLACE {;COMIN/SOURCE/;} WITH {
+@@ -184,7 +184,10 @@ REPLACE {;COMIN/SOURCE/;} WITH {
               "2 => particles of any charge (for isource = 9 only)	       "
      SHLflag, "1 => send particle shared lib, 0 => no shared lib (isource=20)   "
      calflag, "0 => perform calibration run, 1 => no calib run (isource=20)     "
 -    MLCflag, "1 => send particles through MLC, 0 => no MLC   (isource=20,21)   "
 +    MLCflag, "MLC mode (source 20/21):"
 +             "0 none, 1 legacy library, 2 native mcdose bridge"
++    i_source2_patient_frame,
++             "1 => source-2 IAEA records are already in a patient frame"
      ixinl,   "Index of lower x-boundary of beam                  (isource=0,6) "
      ixinu,   "Index of upper x-boundary of beam                  (isource=0,6) "
      jyinl,   "Index of lower y-boundary of beam                  (isource=0,6) "
+@@ -247,8 +250,8 @@ REPLACE {;COMIN/SOURCE/;} WITH {
+     r_dbs, ssd_dbs,z_dbs,survival_ratio,einsrcold,iaea_SAD;
+     $INTEGER isource, iqin, iqphsp, iqinc,latchold,iqinold,MLCflag,SHLflag,
+-    calflag, ixinl, ixinu, jyinl, jyinu, kzinl, kzinu,
++    calflag, i_source2_patient_frame, ixinl, ixinu, jyinl, jyinu, kzinl, kzinu,
+     klowx, khix, klowy, khiy, klowz, khiz,
+     nsmiss, nsblocked, nsrjct,nsoutside, nmissm,enflag,
+     dflag, ismode, IPRIMARY, OLDSRC,npassi,nang,ivary,ngang,numang,dose_stat,
+     ndbsrjct,i_dbs,iphatsrc,e_split,i_iaea_in,i_mu_phsp,izscore,i_unit_in,
+     num_field,more_in_cont,nset,k_field;
 diff --git a/srcxyznrc.mortran b/srcxyznrc.mortran
 --- a/srcxyznrc.mortran
 +++ b/srcxyznrc.mortran
+@@ -779,5 +779,5 @@ implicit none;
+ "**************************************************************************"
+-REPLACE {$NTEMP} WITH {12} "Dimension of temporary input buffer
++REPLACE {$NTEMP} WITH {13} "Dimension of temporary input buffer
+ $REAL temp,fnorm,binsok,gridsz,ak;
+ $INTEGER i,k,j,ib,ieof;
+ dimension temp($NTEMP);
+@@ -794,5 +794,6 @@ enflag = 0; "Default flag: Source energy same for each source particle
+ i_muidx_out = 0; "default not to output frMU_indx if writing phsp data"
+ calflag = 0; "default to running the calibration run (isource = 20)"
++i_source2_patient_frame = 0; "default to standard source-plane IAEA semantics"
+ 
+ OUTPUT; ( / / ' Source configuration'/);
+ OUTPUT; (
+@@ -1062,5 +1063,12 @@ ELSEIF(isource = 2)[ "Full phase space for each particle"
+     theta(1)   = temp(4);     phi(1)     = temp(5);     dsource = temp(6);
+     phicol  = temp(7);     iqphsp=iqin;
+     i_dbs=temp(8); r_dbs=temp(9); ssd_dbs=temp(10); z_dbs=temp(11);
+     e_split=temp(12);
++    IF(temp(13) ~= 0 & temp(13) ~= 1)[
++      OUTPUT61 temp(13);
++      (//' ***ERROR in source 2:'/
++        ' patient-frame flag must be 0 or 1, received ',f10.3//);
++      STOP;
++    ]
++    i_source2_patient_frame=temp(13);
+     OUTPUT xiso,yiso,ziso,theta(1),phi(1),dsource,phicol,e_split;
+@@ -1074,5 +1082,10 @@ ELSEIF(isource = 2)[ "Full phase space for each particle"
+         ' Source rotation angle:'            ,t55,f10.4/
+         ' No. of times to split e+/e-:'    ,t55,i10/);
++    IF(i_source2_patient_frame=1)[
++      OUTPUT61;
++      (/' IAEA coordinates: patient frame before configured rotation'/
++        ' Source-plane W and BEAM_SIZE rejection: disabled'/);
++    ]
+     IF(i_dbs=1)[
+       OUTPUT r_dbs,ssd_dbs,z_dbs;
+       (/ ' Directional Bremsstrahlung Splitting (DBS) used'/
 @@ -2274,6 +2274,10 @@ ELSEIF( (enflag = 2) | (enflag = 3) )["phase space input or full BEAM sim."
  	"no MLC
  	MLCflag = 0;
@@ -107,6 +157,32 @@ diff --git a/srcxyznrc.mortran b/srcxyznrc.mortran
  $LONG_INT n_hist_dum;
  
  save wsrc; "in case of phsp particle recycling"
+@@ -3641,7 +3659,8 @@ ELSE[ "choose a new particle"
+ 
+        nnread = nnread +1; "total actually read, initialized to 0 in main"
+ 
+-       IF(wsrc < 0.0) [nsrjct=nsrjct+1; goto :READ-PH-SP-DATA:;]
++       IF(wsrc < 0.0 & i_source2_patient_frame=0)
++          [nsrjct=nsrjct+1; goto :READ-PH-SP-DATA:;]
+        "particle is going backward"
+ 
+        IF( npassi=1 ) [nsrjct=nsrjct+1; goto :READ-PH-SP-DATA:;]
+@@ -3713,10 +3732,12 @@ ELSE[ "choose a new particle"
+        ]"end of (enflag = 3) block"
+ 
+        :FOUND-THE-PARTICLE:;
+-       IF(ABS(xsrc) >= (BEAM_SIZE/2.0) | ABS(ysrc)>=(BEAM_SIZE/2.0))[
+-          nsoutside=nsoutside+1;
++       IF(i_source2_patient_frame=0)[
++          IF(ABS(xsrc) >= (BEAM_SIZE/2.0) | ABS(ysrc)>=(BEAM_SIZE/2.0))[
++             nsoutside=nsoutside+1;
++          ]
+        ]
+-    ]UNTIL(ABS(xsrc) < (BEAM_SIZE/2.0) & ABS(ysrc)<(BEAM_SIZE/2.0));
++    ]UNTIL(i_source2_patient_frame=1 | (ABS(xsrc) < (BEAM_SIZE/2.0) & ABS(ysrc)<(BEAM_SIZE/2.0)));
+     "end of LOOP"
+     IF(NRCYCL>0)[
+        CYCLNUM=1;
 @@ -4060,7 +4078,7 @@ LOOP [;
  
  	]
@@ -138,6 +214,24 @@ diff --git a/srcxyznrc.mortran b/srcxyznrc.mortran
  
  
          IF( iqinc < 2 & iqin ~= iqinc ) [
+@@ -4155,7 +4190,16 @@ IF(NofREPEAT > 0 & ISMOOTH = 1)[
+ ]
+ 
+ "Rotate/translate the source particle into position
+-IF(isource<7 | isource=9)[
++IF(isource=2 & i_source2_patient_frame=1)[
++  "Patient-frame IAEA records retain stored Z and both signs of W."
++  uin   = r_11(1)*usrc + r_12(1)*vsrc + r_13(1)*wsrc;
++  vin   = r_21(1)*usrc + r_22(1)*vsrc + r_23(1)*wsrc;
++  win   = r_31(1)*usrc + r_32(1)*vsrc + r_33(1)*wsrc;
++  xsrcp = r_11(1)*xsrc + r_12(1)*ysrc + r_13(1)*zsrc + xiso;
++  ysrcp = r_21(1)*xsrc + r_22(1)*ysrc + r_23(1)*zsrc + yiso;
++  zsrcp = r_31(1)*xsrc + r_32(1)*ysrc + r_33(1)*zsrc + ziso;
++]
++ELSEIF(isource<7 | isource=9)[
+   IF(i_iaea_in=1) zsrc = zsrc - iaea_SAD;
+ 
+   uin   = r_11(1)*usrc + r_12(1)*vsrc + r_13(1)*wsrc;
 diff --git a/dosxyznrc.mortran b/dosxyznrc.mortran
 --- a/dosxyznrc.mortran
 +++ b/dosxyznrc.mortran

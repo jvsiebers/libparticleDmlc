@@ -23,3 +23,6 @@ test-only values must not be substituted for a commissioned machine profile.
 The DOSXYZ patch is pinned to EGSnrc commit
 `9edee3ebfda3d81d0e8eb033a7e76bf9a70e41ef`. Apply it with zero fuzz in an
 isolated user-code copy; do not patch an active clinical or stock EGSnrc tree.
+Its source-2 patient-frame mode is opt-in and intended for post-delivery IAEA
+phase spaces whose coordinates have already been transformed toward the
+patient. Unflagged source 2 retains the upstream source-plane semantics.
