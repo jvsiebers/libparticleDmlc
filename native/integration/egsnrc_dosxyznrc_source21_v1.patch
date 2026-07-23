@@ -167,7 +167,7 @@ diff --git a/srcxyznrc.mortran b/srcxyznrc.mortran
         "particle is going backward"
  
         IF( npassi=1 ) [nsrjct=nsrjct+1; goto :READ-PH-SP-DATA:;]
-@@ -3713,10 +3732,12 @@ ELSE[ "choose a new particle"
+@@ -3713,10 +3732,14 @@ ELSE[ "choose a new particle"
         ]"end of (enflag = 3) block"
  
         :FOUND-THE-PARTICLE:;
@@ -179,7 +179,9 @@ diff --git a/srcxyznrc.mortran b/srcxyznrc.mortran
 +          ]
         ]
 -    ]UNTIL(ABS(xsrc) < (BEAM_SIZE/2.0) & ABS(ysrc)<(BEAM_SIZE/2.0));
-+    ]UNTIL(i_source2_patient_frame=1 | (ABS(xsrc) < (BEAM_SIZE/2.0) & ABS(ysrc)<(BEAM_SIZE/2.0)));
++    ]UNTIL(i_source2_patient_frame=1 |
++           (ABS(xsrc) < (BEAM_SIZE/2.0) &
++            ABS(ysrc) < (BEAM_SIZE/2.0)));
      "end of LOOP"
      IF(NRCYCL>0)[
         CYCLNUM=1;
