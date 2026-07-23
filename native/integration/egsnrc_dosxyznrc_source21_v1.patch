@@ -26,6 +26,23 @@ diff --git a/Makefile b/Makefile
            $(USER_CODE).mortran \
            $(EGS_SOURCEDIR)get_inputs.mortran \
            $(EGS_SOURCEDIR)get_media_inputs.mortran $(MACHINE_MORTRAN) \
+diff --git a/dosxyznrc_user_macros.mortran b/dosxyznrc_user_macros.mortran
+--- a/dosxyznrc_user_macros.mortran
++++ b/dosxyznrc_user_macros.mortran
+@@ -89,9 +89,9 @@ REPLACE {$STAT}    WITH {10}  "Number of batches to use in calcn of statistics"
+                               "It works with $STAT = 1 but gives no stats"
+-REPLACE {$MXMED}   WITH {20}   "Maximum number of media
++REPLACE {$MXMED}   WITH {100}  "Maximum number of media
+ REPLACE {$MXSTACK} WITH {900000}  "Maximum particle stack size
+-REPLACE {$IMAX}    WITH {128} "Maximum number of x cells
+-REPLACE {$JMAX}    WITH {128} "Maximum number of y cells
+-REPLACE {$KMAX}    WITH {128} "Maximum number of z cells
++REPLACE {$IMAX}    WITH {512} "Maximum number of x cells
++REPLACE {$JMAX}    WITH {512} "Maximum number of y cells
++REPLACE {$KMAX}    WITH {512} "Maximum number of z cells
+ REPLACE {$MAXDOSE} WITH {{COMPUTE $IMAX*$JMAX*$KMAX+1}}
+          "Number of dose regions, can be set to < $IMAX*$JMAX*$KMAX if "
+          "necessary to reduce memory requirement, +1 for outside region"
 diff --git a/srcxyznrc.macros b/srcxyznrc.macros
 --- a/srcxyznrc.macros
 +++ b/srcxyznrc.macros
@@ -237,6 +254,19 @@ diff --git a/srcxyznrc.mortran b/srcxyznrc.mortran
 diff --git a/dosxyznrc.mortran b/dosxyznrc.mortran
 --- a/dosxyznrc.mortran
 +++ b/dosxyznrc.mortran
+@@ -1550,6 +1550,12 @@ ELSEIF(NMED=0)[ "Input CT data from a file"
+     "read number of media"
+     read($CTUnitNumber,'(i2)')NMED;
+     OUTPUT61 NMED;(/' NMED = ',i2);
++    IF(NMED < 1 | NMED > $MXMED)[
++       OUTPUT61 NMED,$MXMED;
++       (/' ***ERROR: CT phantom medium count ',i5,
++         ' is outside the compiled range 1..',i5/);
++       STOP;
++    ]
+     "media names"
+     OUTPUT61;(/' media:');
+     DO n=1,NMED[
 @@ -2612,8 +2612,9 @@
  
  :start_parallel_loop:;

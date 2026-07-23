@@ -199,6 +199,11 @@ then applies the configured rotation and isocenter translation. The unflagged
 source-2 path is unchanged. This explicit mode replaces the legacy numeric
 source-102 convention without retaining its hidden semantics.
 
+The same pinned patch builds DOSXYZ for up to 100 media and 512 voxels per
+axis, matching the runtime-manifest capacity contract. External phantoms whose
+medium count exceeds the compiled limit are rejected before media arrays are
+read.
+
 The patch leaves the normal DOSXYZ `SHOWER` call in place and is an
 EGSnrc-derived AGPL integration artifact. It applies with zero fuzz and passes
 complete Mortran preprocessing, Fortran compilation, release linking, and
