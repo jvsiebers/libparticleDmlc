@@ -192,17 +192,19 @@ commit `9edee3ebfda3d81d0e8eb033a7e76bf9a70e41ef`. It adds the explicit
 exact fractional MU, drains the native queue before sampling BEAM again, and
 preserves the queue and fractional MU across DOSXYZ parallel scheduler chunks.
 Stock reset behavior remains unchanged for source 20 and non-native source 21.
-It also adds an opt-in source-2 patient-frame flag for IAEA files written after
-delivery transforms such as MLC transport. That mode preserves stored Z and
-both signs of W, disables only the source-plane W and `BEAM_SIZE` filters, and
-then applies the configured rotation and isocenter translation. The unflagged
-source-2 path is unchanged. This explicit mode replaces the legacy numeric
-source-102 convention without retaining its hidden semantics.
+It also adds opt-in source-2 patient-frame modes for IAEA files written after
+delivery transforms such as MLC transport. Mode 1 performs an exact
+translation-only handoff equivalent to legacy source 102. Mode 2 applies the
+configured rotation before the isocenter translation. Both preserve stored Z
+and both signs of W and disable only the source-plane W and `BEAM_SIZE`
+filters. The unflagged source-2 path is unchanged.
 
 The same pinned patch builds DOSXYZ for up to 100 media and 512 voxels per
-axis, matching the runtime-manifest capacity contract. External phantoms whose
-medium count exceeds the compiled limit are rejected before media arrays are
-read.
+axis, matching the runtime-manifest capacity contract. Its phantom reader
+accepts both standard EGSnrc base-62 medium rows and legacy UVA fixed-width
+three-digit medium rows. Mixed encodings, media outside the phantom's declared
+range, and medium counts above the compiled limit are rejected before
+transport.
 
 The patch leaves the normal DOSXYZ `SHOWER` call in place and is an
 EGSnrc-derived AGPL integration artifact. It applies with zero fuzz and passes
