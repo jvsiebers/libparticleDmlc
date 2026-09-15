@@ -119,6 +119,30 @@ set_target_properties(
 )
 
 add_library(
+    mcdose_particle_dmlc_source_session
+    SHARED
+    integration/source_session_v1.cpp
+)
+target_compile_features(mcdose_particle_dmlc_source_session PUBLIC cxx_std_17)
+target_compile_definitions(
+    mcdose_particle_dmlc_source_session PRIVATE MCDOSE_PARTICLE_DMLC_BUILD
+)
+target_include_directories(
+    mcdose_particle_dmlc_source_session
+    PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:include>
+)
+target_link_libraries(
+    mcdose_particle_dmlc_source_session
+    PRIVATE mcdose_particle_dmlc_host_adapter
+)
+set_target_properties(
+    mcdose_particle_dmlc_source_session
+    PROPERTIES VERSION ${PROJECT_VERSION} SOVERSION 1
+)
+
+add_library(
     mcdose_particle_dmlc_source_output_correction
     SHARED
     integration/source_output_correction_v1.cpp
@@ -265,6 +289,7 @@ endif()
 if(MSVC)
     target_compile_options(mcdose_particle_dmlc_native PRIVATE /W4 /WX)
     target_compile_options(mcdose_particle_dmlc_host_adapter PRIVATE /W4 /WX)
+    target_compile_options(mcdose_particle_dmlc_source_session PRIVATE /W4 /WX)
     target_compile_options(mcdose_particle_dmlc_egsnrc_adapter PRIVATE /W4 /WX)
     target_compile_options(
         mcdose_particle_dmlc_source_output_correction PRIVATE /W4 /WX
@@ -285,6 +310,10 @@ else()
     )
     target_compile_options(
         mcdose_particle_dmlc_host_adapter PRIVATE -Wall -Wextra -Wpedantic -Werror
+    )
+    target_compile_options(
+        mcdose_particle_dmlc_source_session
+        PRIVATE -Wall -Wextra -Wpedantic -Werror
     )
     target_compile_options(
         mcdose_particle_dmlc_egsnrc_adapter PRIVATE -Wall -Wextra -Wpedantic -Werror
@@ -364,6 +393,22 @@ if(BUILD_TESTING)
         PRIVATE mcdose_particle_dmlc_host_adapter Threads::Threads
     )
     add_test(NAME particle_dmlc_producer_v1 COMMAND test_particle_dmlc_producer_v1)
+    add_executable(
+        test_particle_dmlc_source_session_v1 tests/test_source_session_v1.cpp
+    )
+    target_compile_features(
+        test_particle_dmlc_source_session_v1 PRIVATE cxx_std_17
+    )
+    target_link_libraries(
+        test_particle_dmlc_source_session_v1
+        PRIVATE
+            mcdose_particle_dmlc_source_session
+            mcdose_particle_dmlc_host_adapter
+    )
+    add_test(
+        NAME particle_dmlc_source_session_v1
+        COMMAND test_particle_dmlc_source_session_v1
+    )
     add_executable(test_particle_dmlc_egsnrc_adapter_v1 tests/test_egsnrc_adapter_v1.cpp)
     target_compile_features(test_particle_dmlc_egsnrc_adapter_v1 PRIVATE cxx_std_17)
     target_link_libraries(
@@ -514,6 +559,7 @@ install(
     TARGETS
         mcdose_particle_dmlc_native
         mcdose_particle_dmlc_host_adapter
+        mcdose_particle_dmlc_source_session
         mcdose_particle_dmlc_egsnrc_adapter
         mcdose_particle_dmlc_source_output_correction
 )
@@ -537,6 +583,7 @@ install(
         include/mcdose_particle_dmlc_interaction_v1.h
         include/mcdose_particle_dmlc_host_adapter_v1.h
         include/mcdose_particle_dmlc_producer_v1.h
+        include/mcdose_particle_dmlc_source_session_v1.h
         include/mcdose_particle_dmlc_egsnrc_adapter_v1.h
         include/mcdose_particle_dmlc_egsnrc_mortran_bridge_v1.h
         include/mcdose_particle_dmlc_startup_v1.h

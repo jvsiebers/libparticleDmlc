@@ -151,6 +151,17 @@ definitions and run concurrently. An eight-worker test covers synchronized
 context construction, transport, product drain, and destruction with isolated
 random and sampled-weight callback state.
 
+The separately built `mcdose_particle_dmlc_source_session` library adds a
+transport-neutral scalar source lifecycle above that producer. An upstream
+callback supplies incident particles, fractional meterset, candidate product
+identifiers, and explicit history-boundary state. The session drains all MLC
+products before requesting another incident particle and retains the source
+history ID and boundary state on each descendant, so correlated source reuse
+remains one statistical history. It deliberately has no DICOM, BEAMnrc, or
+EGSnrc ABI dependency. A null producer supports direct pass-through; a
+non-null producer is caller-owned and applies the commissioned MLC transport.
+Batch operation and BEAM/EGSnrc consumer adapters are separate future layers.
+
 An optional `MCDOSE_PARTICLE_DMLC_BUILD_STARTUP_LOADER=ON` target links SQLite
 3.37 or newer outside the transport core. It strictly loads the versioned
 Python-created delivery/machine artifact, verifies its complete canonical
