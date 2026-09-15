@@ -42,6 +42,9 @@ mcdose_particle_dmlc_source_incident_v1 incident(uint64_t history_id,
     value.has_incident = 1;
     value.starts_new_history = starts_new_history;
     value.fractional_meterset = 0.25;
+    value.z_last_cm = 42.0;
+    value.latch = 19;
+    value.photon_history = 1;
     value.scattered_photon_particle_id = particle_id + 1000;
     value.electron_particle_id = particle_id + 2000;
     value.particle.abi_version = MCDOSE_PARTICLE_DMLC_NATIVE_ABI_VERSION;
@@ -223,6 +226,9 @@ int main() {
     CHECK(first.has_product == 1);
     CHECK(first.product_kind == MCDOSE_PARTICLE_DMLC_PRODUCER_PRIMARY);
     CHECK(first.starts_new_history == 1);
+    CHECK(first.latch == 19);
+    CHECK(first.photon_history == 1);
+    CHECK(first.z_last_cm == 42.0);
     CHECK(first.source_history_id == 41);
     CHECK(first.particle.history_id == 41);
     CHECK(first.particle.particle_id == 101);
@@ -237,6 +243,9 @@ int main() {
           MCDOSE_PARTICLE_DMLC_STATUS_OK);
     CHECK(second.has_product == 1);
     CHECK(second.starts_new_history == 0);
+    CHECK(second.latch == 19);
+    CHECK(second.photon_history == 1);
+    CHECK(second.z_last_cm == 42.0);
     CHECK(second.source_history_id == 41);
     auto exhausted = result();
     CHECK(mcdose_particle_dmlc_next_source_product_v1(
@@ -263,10 +272,16 @@ int main() {
     CHECK(batch_results[0].particle.particle_id == 101);
     CHECK(batch_results[0].source_history_id == 41);
     CHECK(batch_results[0].starts_new_history == 1);
+    CHECK(batch_results[0].latch == 19);
+    CHECK(batch_results[0].photon_history == 1);
+    CHECK(batch_results[0].z_last_cm == 42.0);
     CHECK(batch_results[1].has_product == 1);
     CHECK(batch_results[1].particle.particle_id == 102);
     CHECK(batch_results[1].source_history_id == 41);
     CHECK(batch_results[1].starts_new_history == 0);
+    CHECK(batch_results[1].latch == 19);
+    CHECK(batch_results[1].photon_history == 1);
+    CHECK(batch_results[1].z_last_cm == 42.0);
     CHECK(batch_results[2].has_product == 0);
     auto mixed_result = result();
     CHECK(mcdose_particle_dmlc_next_source_product_v1(
@@ -326,6 +341,9 @@ int main() {
     CHECK(transported_result.product_kind == MCDOSE_PARTICLE_DMLC_PRODUCER_PRIMARY);
     CHECK(transported_result.remaining_product_count == 1);
     CHECK(transported_result.starts_new_history == 1);
+    CHECK(transported_result.latch == 19);
+    CHECK(transported_result.photon_history == 1);
+    CHECK(transported_result.z_last_cm == 42.0);
     CHECK(transported_result.source_history_id == 77);
     CHECK(transported_result.particle.history_id == 77);
     CHECK(transported_result.particle.particle_id == 301);
@@ -339,6 +357,9 @@ int main() {
           MCDOSE_PARTICLE_DMLC_PRODUCER_SCATTERED_PHOTON);
     CHECK(scattered_result.remaining_product_count == 0);
     CHECK(scattered_result.starts_new_history == 1);
+    CHECK(scattered_result.latch == 19);
+    CHECK(scattered_result.photon_history == 1);
+    CHECK(scattered_result.z_last_cm == 42.0);
     CHECK(scattered_result.source_history_id == 77);
     CHECK(scattered_result.particle.history_id == 77);
     CHECK(scattered_result.particle.parent_particle_id == 301);
@@ -383,6 +404,11 @@ int main() {
           transported_result.remaining_product_count);
     CHECK(transported_batch_results[0].source_history_id ==
           transported_result.source_history_id);
+    CHECK(transported_batch_results[0].latch == transported_result.latch);
+    CHECK(transported_batch_results[0].photon_history ==
+          transported_result.photon_history);
+    CHECK(transported_batch_results[0].z_last_cm ==
+          transported_result.z_last_cm);
     CHECK(transported_batch_results[0].particle.history_id ==
           transported_result.particle.history_id);
     CHECK(transported_batch_results[0].particle.particle_id ==
@@ -398,6 +424,11 @@ int main() {
           scattered_result.remaining_product_count);
     CHECK(transported_batch_results[1].source_history_id ==
           scattered_result.source_history_id);
+    CHECK(transported_batch_results[1].latch == scattered_result.latch);
+    CHECK(transported_batch_results[1].photon_history ==
+          scattered_result.photon_history);
+    CHECK(transported_batch_results[1].z_last_cm ==
+          scattered_result.z_last_cm);
     CHECK(transported_batch_results[1].particle.history_id ==
           scattered_result.particle.history_id);
     CHECK(transported_batch_results[1].particle.parent_particle_id ==

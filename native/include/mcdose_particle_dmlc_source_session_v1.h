@@ -21,6 +21,9 @@ typedef struct mcdose_particle_dmlc_source_incident_v1 {
     uint32_t has_incident;
     uint32_t starts_new_history;
     double fractional_meterset;
+    double z_last_cm;
+    int32_t latch;
+    int32_t photon_history;
     uint64_t scattered_photon_particle_id;
     uint64_t electron_particle_id;
     mcdose_particle_dmlc_particle_v1 particle;
@@ -52,6 +55,9 @@ typedef struct mcdose_particle_dmlc_source_session_result_v1 {
     int32_t product_kind;
     uint32_t starts_new_history;
     double fractional_meterset;
+    double z_last_cm;
+    int32_t latch;
+    int32_t photon_history;
     uint64_t source_history_id;
     mcdose_particle_dmlc_particle_v1 particle;
 } mcdose_particle_dmlc_source_session_result_v1;

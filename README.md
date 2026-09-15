@@ -154,11 +154,12 @@ random and sampled-weight callback state.
 The separately built `mcdose_particle_dmlc_source_session` library adds a
 transport-neutral scalar source lifecycle above that producer. An upstream
 callback supplies incident particles, fractional meterset, candidate product
-identifiers, and explicit history-boundary state. The session drains all MLC
-products before requesting another incident particle and retains the source
-history ID and boundary state on each descendant, so correlated source reuse
-remains one statistical history. It deliberately has no DICOM, BEAMnrc, or
-EGSnrc ABI dependency. A null producer supports direct pass-through; a
+identifiers, explicit history-boundary state, and BEAM sidecars (LATCH,
+photon-history state, and ZLAST). The session drains all MLC products before
+requesting another incident particle and retains the source history ID,
+history-boundary state, and sidecars on each descendant, so correlated source
+reuse remains one statistical history. It deliberately has no DICOM, BEAMnrc,
+or EGSnrc ABI dependency. A null producer supports direct pass-through; a
 non-null producer is caller-owned and applies the commissioned MLC transport.
 Batch output is a bounded scalar-equivalent loop and cannot be mixed with
 scalar calls on one session. BEAM/EGSnrc consumer adapters are separate future

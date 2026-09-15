@@ -76,10 +76,11 @@ int32_t validate_incident(const mcdose_particle_dmlc_source_incident_v1 &inciden
     }
     if (!std::isfinite(incident.fractional_meterset) ||
         incident.fractional_meterset < 0.0 ||
-        incident.fractional_meterset > 1.0 || !valid_particle(incident.particle)) {
+        incident.fractional_meterset > 1.0 || !std::isfinite(incident.z_last_cm) ||
+        !valid_particle(incident.particle)) {
         return fail(MCDOSE_PARTICLE_DMLC_STATUS_VALIDATION_FAILED, diagnostic,
                     diagnostic_capacity,
-                    "source incident contains invalid particle or meterset data");
+                    "source incident contains invalid particle, meterset, or ZLAST data");
     }
     return MCDOSE_PARTICLE_DMLC_STATUS_OK;
 }
@@ -94,6 +95,9 @@ void copy_product(const mcdose_particle_dmlc_source_session_context_v1 *context,
     result->product_kind = product_kind;
     result->starts_new_history = context->incident.starts_new_history;
     result->fractional_meterset = context->incident.fractional_meterset;
+    result->z_last_cm = context->incident.z_last_cm;
+    result->latch = context->incident.latch;
+    result->photon_history = context->incident.photon_history;
     result->source_history_id = context->incident.particle.history_id;
     result->particle = particle;
     result->particle.history_id = result->source_history_id;
