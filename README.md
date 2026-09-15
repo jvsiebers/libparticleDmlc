@@ -160,7 +160,9 @@ history ID and boundary state on each descendant, so correlated source reuse
 remains one statistical history. It deliberately has no DICOM, BEAMnrc, or
 EGSnrc ABI dependency. A null producer supports direct pass-through; a
 non-null producer is caller-owned and applies the commissioned MLC transport.
-Batch operation and BEAM/EGSnrc consumer adapters are separate future layers.
+Batch output is a bounded scalar-equivalent loop and cannot be mixed with
+scalar calls on one session. BEAM/EGSnrc consumer adapters are separate future
+layers.
 
 An optional `MCDOSE_PARTICLE_DMLC_BUILD_STARTUP_LOADER=ON` target links SQLite
 3.37 or newer outside the transport core. It strictly loads the versioned

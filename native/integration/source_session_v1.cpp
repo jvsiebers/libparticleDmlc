@@ -10,6 +10,7 @@ struct mcdose_particle_dmlc_source_session_context_v1 {
     mcdose_particle_dmlc_next_incident_callback_v1 next_incident = nullptr;
     void *incident_user_data = nullptr;
     mcdose_particle_dmlc_source_incident_v1 incident = {};
+    uint32_t access_mode = 0;
     bool queue_active = false;
 };
 
@@ -97,46 +98,19 @@ void copy_product(const mcdose_particle_dmlc_source_session_context_v1 *context,
     result->particle = particle;
     result->particle.history_id = result->source_history_id;
 }
-}  // namespace
 
-extern "C" int32_t mcdose_particle_dmlc_create_source_session_v1(
-    const mcdose_particle_dmlc_source_session_config_v1 *config,
-    mcdose_particle_dmlc_next_incident_callback_v1 next_incident,
-    void *incident_user_data,
-    mcdose_particle_dmlc_source_session_context_v1 **context,
-    char *diagnostic, size_t diagnostic_capacity) {
-    clear_diagnostic(diagnostic, diagnostic_capacity);
-    if (config == nullptr || next_incident == nullptr || context == nullptr) {
-        return fail(MCDOSE_PARTICLE_DMLC_STATUS_INVALID_ARGUMENT, diagnostic,
+int32_t validate_access_mode(
+    mcdose_particle_dmlc_source_session_context_v1 *context,
+    uint32_t requested_mode, char *diagnostic, size_t diagnostic_capacity) {
+    if (context->access_mode != 0 && context->access_mode != requested_mode) {
+        return fail(MCDOSE_PARTICLE_DMLC_STATUS_VALIDATION_FAILED, diagnostic,
                     diagnostic_capacity,
-                    "source session creation contains an invalid required argument");
-    }
-    *context = nullptr;
-    if (config->abi_version != MCDOSE_PARTICLE_DMLC_NATIVE_ABI_VERSION ||
-        config->struct_size < sizeof(*config)) {
-        return fail(MCDOSE_PARTICLE_DMLC_STATUS_ABI_MISMATCH, diagnostic,
-                    diagnostic_capacity,
-                    "source session configuration ABI version or size differs");
-    }
-    try {
-        auto result = std::make_unique<mcdose_particle_dmlc_source_session_context_v1>();
-        result->producer = config->producer;
-        result->next_incident = next_incident;
-        result->incident_user_data = incident_user_data;
-        *context = result.release();
-    } catch (const std::bad_alloc &) {
-        return fail(MCDOSE_PARTICLE_DMLC_STATUS_ALLOCATION_FAILED, diagnostic,
-                    diagnostic_capacity, "source session context allocation failed");
+                    "source session cannot mix scalar and batch access");
     }
     return MCDOSE_PARTICLE_DMLC_STATUS_OK;
 }
 
-extern "C" void mcdose_particle_dmlc_destroy_source_session_context_v1(
-    mcdose_particle_dmlc_source_session_context_v1 *context) {
-    delete context;
-}
-
-extern "C" int32_t mcdose_particle_dmlc_next_source_product_v1(
+int32_t next_source_product_impl(
     mcdose_particle_dmlc_source_session_context_v1 *context,
     mcdose_particle_dmlc_source_session_result_v1 *result, char *diagnostic,
     size_t diagnostic_capacity) {
@@ -208,4 +182,105 @@ extern "C" int32_t mcdose_particle_dmlc_next_source_product_v1(
         context->queue_active = summary.retained_product_count != 0;
         /* A blocked incident produces no product and the source advances. */
     }
+}
+}  // namespace
+
+extern "C" int32_t mcdose_particle_dmlc_create_source_session_v1(
+    const mcdose_particle_dmlc_source_session_config_v1 *config,
+    mcdose_particle_dmlc_next_incident_callback_v1 next_incident,
+    void *incident_user_data,
+    mcdose_particle_dmlc_source_session_context_v1 **context,
+    char *diagnostic, size_t diagnostic_capacity) {
+    clear_diagnostic(diagnostic, diagnostic_capacity);
+    if (config == nullptr || next_incident == nullptr || context == nullptr) {
+        return fail(MCDOSE_PARTICLE_DMLC_STATUS_INVALID_ARGUMENT, diagnostic,
+                    diagnostic_capacity,
+                    "source session creation contains an invalid required argument");
+    }
+    *context = nullptr;
+    if (config->abi_version != MCDOSE_PARTICLE_DMLC_NATIVE_ABI_VERSION ||
+        config->struct_size < sizeof(*config)) {
+        return fail(MCDOSE_PARTICLE_DMLC_STATUS_ABI_MISMATCH, diagnostic,
+                    diagnostic_capacity,
+                    "source session configuration ABI version or size differs");
+    }
+    try {
+        auto result = std::make_unique<mcdose_particle_dmlc_source_session_context_v1>();
+        result->producer = config->producer;
+        result->next_incident = next_incident;
+        result->incident_user_data = incident_user_data;
+        *context = result.release();
+    } catch (const std::bad_alloc &) {
+        return fail(MCDOSE_PARTICLE_DMLC_STATUS_ALLOCATION_FAILED, diagnostic,
+                    diagnostic_capacity, "source session context allocation failed");
+    }
+    return MCDOSE_PARTICLE_DMLC_STATUS_OK;
+}
+
+extern "C" void mcdose_particle_dmlc_destroy_source_session_context_v1(
+    mcdose_particle_dmlc_source_session_context_v1 *context) {
+    delete context;
+}
+
+extern "C" int32_t mcdose_particle_dmlc_next_source_product_v1(
+    mcdose_particle_dmlc_source_session_context_v1 *context,
+    mcdose_particle_dmlc_source_session_result_v1 *result, char *diagnostic,
+    size_t diagnostic_capacity) {
+    clear_diagnostic(diagnostic, diagnostic_capacity);
+    if (context == nullptr || result == nullptr) {
+        return next_source_product_impl(context, result, diagnostic,
+                                        diagnostic_capacity);
+    }
+    const int32_t mode_status = validate_access_mode(context, 1, diagnostic,
+                                                     diagnostic_capacity);
+    if (mode_status != MCDOSE_PARTICLE_DMLC_STATUS_OK) {
+        return mode_status;
+    }
+    const int32_t status = next_source_product_impl(context, result, diagnostic,
+                                                    diagnostic_capacity);
+    if (status == MCDOSE_PARTICLE_DMLC_STATUS_OK) {
+        context->access_mode = 1;
+    }
+    return status;
+}
+
+extern "C" int32_t mcdose_particle_dmlc_next_source_products_v1(
+    mcdose_particle_dmlc_source_session_context_v1 *context,
+    mcdose_particle_dmlc_source_session_result_v1 *results,
+    uint32_t result_capacity, uint32_t *product_count, char *diagnostic,
+    size_t diagnostic_capacity) {
+    clear_diagnostic(diagnostic, diagnostic_capacity);
+    if (context == nullptr || results == nullptr || product_count == nullptr ||
+        result_capacity == 0) {
+        return fail(MCDOSE_PARTICLE_DMLC_STATUS_INVALID_ARGUMENT, diagnostic,
+                    diagnostic_capacity,
+                    "source session batch drain contains an invalid required argument");
+    }
+    *product_count = 0;
+    for (uint32_t index = 0; index < result_capacity; ++index) {
+        if (results[index].abi_version != MCDOSE_PARTICLE_DMLC_NATIVE_ABI_VERSION ||
+            results[index].struct_size < sizeof(results[index])) {
+            return fail(MCDOSE_PARTICLE_DMLC_STATUS_ABI_MISMATCH, diagnostic,
+                        diagnostic_capacity,
+                        "source session batch result ABI version or size differs");
+        }
+    }
+    const int32_t mode_status = validate_access_mode(context, 2, diagnostic,
+                                                     diagnostic_capacity);
+    if (mode_status != MCDOSE_PARTICLE_DMLC_STATUS_OK) {
+        return mode_status;
+    }
+    for (uint32_t index = 0; index < result_capacity; ++index) {
+        const int32_t status = next_source_product_impl(
+            context, &results[index], diagnostic, diagnostic_capacity);
+        if (status != MCDOSE_PARTICLE_DMLC_STATUS_OK) {
+            return status;
+        }
+        context->access_mode = 2;
+        if (results[index].has_product == 0) {
+            return MCDOSE_PARTICLE_DMLC_STATUS_OK;
+        }
+        ++*product_count;
+    }
+    return MCDOSE_PARTICLE_DMLC_STATUS_OK;
 }

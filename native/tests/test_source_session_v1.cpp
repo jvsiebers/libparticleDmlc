@@ -244,6 +244,36 @@ int main() {
               sizeof(diagnostic)) == MCDOSE_PARTICLE_DMLC_STATUS_OK);
     CHECK(exhausted.has_product == 0);
 
+    source_state batch = {{incident(41, 101, 1), incident(41, 102, 0)}};
+    mcdose_particle_dmlc_source_session_context_v1 *batch_raw = nullptr;
+    CHECK(mcdose_particle_dmlc_create_source_session_v1(
+              &direct_config, next_incident, &batch, &batch_raw, diagnostic,
+              sizeof(diagnostic)) == MCDOSE_PARTICLE_DMLC_STATUS_OK);
+    session_pointer batch_session(
+        batch_raw, mcdose_particle_dmlc_destroy_source_session_context_v1);
+    std::array<mcdose_particle_dmlc_source_session_result_v1, 3> batch_results = {
+        result(), result(), result()};
+    uint32_t batch_count = 0;
+    CHECK(mcdose_particle_dmlc_next_source_products_v1(
+              batch_session.get(), batch_results.data(),
+              static_cast<uint32_t>(batch_results.size()), &batch_count,
+              diagnostic, sizeof(diagnostic)) == MCDOSE_PARTICLE_DMLC_STATUS_OK);
+    CHECK(batch_count == 2);
+    CHECK(batch_results[0].has_product == 1);
+    CHECK(batch_results[0].particle.particle_id == 101);
+    CHECK(batch_results[0].source_history_id == 41);
+    CHECK(batch_results[0].starts_new_history == 1);
+    CHECK(batch_results[1].has_product == 1);
+    CHECK(batch_results[1].particle.particle_id == 102);
+    CHECK(batch_results[1].source_history_id == 41);
+    CHECK(batch_results[1].starts_new_history == 0);
+    CHECK(batch_results[2].has_product == 0);
+    auto mixed_result = result();
+    CHECK(mcdose_particle_dmlc_next_source_product_v1(
+              batch_session.get(), &mixed_result, diagnostic,
+              sizeof(diagnostic)) == MCDOSE_PARTICLE_DMLC_STATUS_VALIDATION_FAILED);
+    CHECK(std::strstr(diagnostic, "mix") != nullptr);
+
     source_state invalid_incident = {{incident(99, 201, 2)}};
     mcdose_particle_dmlc_source_session_context_v1 *invalid_session_raw = nullptr;
     CHECK(mcdose_particle_dmlc_create_source_session_v1(
@@ -312,5 +342,69 @@ int main() {
     CHECK(scattered_result.source_history_id == 77);
     CHECK(scattered_result.particle.history_id == 77);
     CHECK(scattered_result.particle.parent_particle_id == 301);
+
+    mcdose_particle_dmlc_producer_context_v1 *batch_producer_raw = nullptr;
+    CHECK(mcdose_particle_dmlc_create_producer_context_v1(
+              &values.delivery, &values.machine, &producer_config,
+              &batch_producer_raw, diagnostic, sizeof(diagnostic)) ==
+          MCDOSE_PARTICLE_DMLC_STATUS_OK);
+    producer_pointer batch_producer(
+        batch_producer_raw, mcdose_particle_dmlc_destroy_producer_context_v1);
+    random_state batch_random;
+    CHECK(mcdose_particle_dmlc_set_producer_random_source_v1(
+              batch_producer.get(), next_random, &batch_random, diagnostic,
+              sizeof(diagnostic)) == MCDOSE_PARTICLE_DMLC_STATUS_OK);
+    source_state transported_batch = {{incident(77, 301, 1)}};
+    transported_batch.incidents[0].particle.position_cm[0] = 1.1;
+    transported_batch.incidents[0].particle.position_cm[1] = -0.5;
+    auto transported_batch_config = config(batch_producer.get());
+    mcdose_particle_dmlc_source_session_context_v1 *transported_batch_raw =
+        nullptr;
+    CHECK(mcdose_particle_dmlc_create_source_session_v1(
+              &transported_batch_config, next_incident, &transported_batch,
+              &transported_batch_raw, diagnostic, sizeof(diagnostic)) ==
+          MCDOSE_PARTICLE_DMLC_STATUS_OK);
+    session_pointer transported_batch_session(
+        transported_batch_raw,
+        mcdose_particle_dmlc_destroy_source_session_context_v1);
+    std::array<mcdose_particle_dmlc_source_session_result_v1, 2>
+        transported_batch_results = {result(), result()};
+    uint32_t transported_batch_count = 0;
+    CHECK(mcdose_particle_dmlc_next_source_products_v1(
+              transported_batch_session.get(), transported_batch_results.data(),
+              static_cast<uint32_t>(transported_batch_results.size()),
+              &transported_batch_count, diagnostic, sizeof(diagnostic)) ==
+          MCDOSE_PARTICLE_DMLC_STATUS_OK);
+    CHECK(transported_batch_count == 2);
+    CHECK(transported_batch_results[0].has_product == 1);
+    CHECK(transported_batch_results[0].product_kind ==
+          transported_result.product_kind);
+    CHECK(transported_batch_results[0].remaining_product_count ==
+          transported_result.remaining_product_count);
+    CHECK(transported_batch_results[0].source_history_id ==
+          transported_result.source_history_id);
+    CHECK(transported_batch_results[0].particle.history_id ==
+          transported_result.particle.history_id);
+    CHECK(transported_batch_results[0].particle.particle_id ==
+          transported_result.particle.particle_id);
+    CHECK(transported_batch_results[0].particle.energy_mev ==
+          transported_result.particle.energy_mev);
+    CHECK(transported_batch_results[0].particle.weight ==
+          transported_result.particle.weight);
+    CHECK(transported_batch_results[1].has_product == 1);
+    CHECK(transported_batch_results[1].product_kind ==
+          scattered_result.product_kind);
+    CHECK(transported_batch_results[1].remaining_product_count ==
+          scattered_result.remaining_product_count);
+    CHECK(transported_batch_results[1].source_history_id ==
+          scattered_result.source_history_id);
+    CHECK(transported_batch_results[1].particle.history_id ==
+          scattered_result.particle.history_id);
+    CHECK(transported_batch_results[1].particle.parent_particle_id ==
+          scattered_result.particle.parent_particle_id);
+    CHECK(transported_batch_results[1].particle.energy_mev ==
+          scattered_result.particle.energy_mev);
+    CHECK(transported_batch_results[1].particle.weight ==
+          scattered_result.particle.weight);
     return 0;
 }

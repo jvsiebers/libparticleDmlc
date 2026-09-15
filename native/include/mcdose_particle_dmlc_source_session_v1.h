@@ -84,6 +84,21 @@ MCDOSE_PARTICLE_DMLC_API int32_t mcdose_particle_dmlc_next_source_product_v1(
     char *diagnostic,
     size_t diagnostic_capacity);
 
+/*
+ * Drains up to result_capacity products in exactly the same order as repeated
+ * scalar calls. Every result entry must be initialized with the current ABI
+ * version and its struct size. product_count excludes the explicit empty
+ * entry written when source exhaustion is reached. A context selects scalar or
+ * batch access on first successful use and rejects later mixing.
+ */
+MCDOSE_PARTICLE_DMLC_API int32_t mcdose_particle_dmlc_next_source_products_v1(
+    mcdose_particle_dmlc_source_session_context_v1 *context,
+    mcdose_particle_dmlc_source_session_result_v1 *results,
+    uint32_t result_capacity,
+    uint32_t *product_count,
+    char *diagnostic,
+    size_t diagnostic_capacity);
+
 #ifdef __cplusplus
 }
 #endif
