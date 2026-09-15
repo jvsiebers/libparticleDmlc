@@ -10,6 +10,7 @@ struct mcdose_particle_dmlc_source_session_context_v1 {
     mcdose_particle_dmlc_next_incident_callback_v1 next_incident = nullptr;
     void *incident_user_data = nullptr;
     mcdose_particle_dmlc_source_incident_v1 incident = {};
+    mcdose_particle_dmlc_source_session_summary_v1 summary = {};
     uint32_t access_mode = 0;
     bool queue_active = false;
 };
@@ -148,29 +149,45 @@ int32_t next_source_product_impl(
             context->queue_active = product.remaining_product_count != 0;
             copy_product(context, product.product_kind, product.particle,
                          product.remaining_product_count, result);
+            ++context->summary.emitted_product_count;
+            return MCDOSE_PARTICLE_DMLC_STATUS_OK;
+        }
+
+        if (context->summary.source_exhausted != 0) {
             return MCDOSE_PARTICLE_DMLC_STATUS_OK;
         }
 
         mcdose_particle_dmlc_source_incident_v1 incident = {};
         incident.abi_version = MCDOSE_PARTICLE_DMLC_NATIVE_ABI_VERSION;
         incident.struct_size = sizeof(incident);
+        ++context->summary.incident_callback_count;
         const int32_t source_status = context->next_incident(
             context->incident_user_data, &incident, diagnostic, diagnostic_capacity);
         if (source_status != MCDOSE_PARTICLE_DMLC_STATUS_OK) {
+            ++context->summary.source_callback_failure_count;
             return source_status;
         }
         const int32_t validation_status =
             validate_incident(incident, diagnostic, diagnostic_capacity);
         if (validation_status != MCDOSE_PARTICLE_DMLC_STATUS_OK) {
+            ++context->summary.incident_rejection_count;
             return validation_status;
         }
         if (incident.has_incident == 0) {
+            context->summary.source_exhausted = 1;
             return MCDOSE_PARTICLE_DMLC_STATUS_OK;
         }
+        ++context->summary.incident_particle_count;
+        if (incident.starts_new_history != 0) {
+            ++context->summary.observed_source_history_count;
+        }
+        context->summary.last_source_history_id = incident.particle.history_id;
         context->incident = incident;
         if (context->producer == nullptr) {
             copy_product(context, MCDOSE_PARTICLE_DMLC_PRODUCER_PRIMARY,
                          incident.particle, 0, result);
+            ++context->summary.emitted_product_count;
+            ++context->summary.pass_through_product_count;
             return MCDOSE_PARTICLE_DMLC_STATUS_OK;
         }
         mcdose_particle_dmlc_producer_summary_v1 summary = {};
@@ -180,9 +197,23 @@ int32_t next_source_product_impl(
             context->producer, &incident.particle, incident.fractional_meterset,
             incident.scattered_photon_particle_id, incident.electron_particle_id,
             &summary, diagnostic, diagnostic_capacity);
+        context->summary.producer_random_draw_count += summary.random_draw_count;
         if (producer_status != MCDOSE_PARTICLE_DMLC_STATUS_OK) {
+            ++context->summary.producer_failure_count;
             return producer_status;
         }
+        ++context->summary.producer_incident_count;
+        if (summary.retained_product_count == 0) {
+            ++context->summary.producer_blocked_incident_count;
+        }
+        context->summary.producer_retained_product_count +=
+            summary.retained_product_count;
+        context->summary.producer_primary_retained_count +=
+            summary.primary_retained;
+        context->summary.producer_scattered_photon_retained_count +=
+            summary.scattered_photon_retained;
+        context->summary.producer_generated_electron_discarded_count +=
+            summary.generated_compton_electron_discarded;
         context->queue_active = summary.retained_product_count != 0;
         /* A blocked incident produces no product and the source advances. */
     }
@@ -208,11 +239,20 @@ extern "C" int32_t mcdose_particle_dmlc_create_source_session_v1(
                     diagnostic_capacity,
                     "source session configuration ABI version or size differs");
     }
+    for (uint32_t reserved : config->reserved) {
+        if (reserved != 0) {
+            return fail(MCDOSE_PARTICLE_DMLC_STATUS_VALIDATION_FAILED,
+                        diagnostic, diagnostic_capacity,
+                        "source session reserved configuration is nonzero");
+        }
+    }
     try {
         auto result = std::make_unique<mcdose_particle_dmlc_source_session_context_v1>();
         result->producer = config->producer;
         result->next_incident = next_incident;
         result->incident_user_data = incident_user_data;
+        result->summary.abi_version = MCDOSE_PARTICLE_DMLC_NATIVE_ABI_VERSION;
+        result->summary.struct_size = sizeof(result->summary);
         *context = result.release();
     } catch (const std::bad_alloc &) {
         return fail(MCDOSE_PARTICLE_DMLC_STATUS_ALLOCATION_FAILED, diagnostic,
@@ -286,5 +326,29 @@ extern "C" int32_t mcdose_particle_dmlc_next_source_products_v1(
         }
         ++*product_count;
     }
+    return MCDOSE_PARTICLE_DMLC_STATUS_OK;
+}
+
+extern "C" int32_t mcdose_particle_dmlc_get_source_session_summary_v1(
+    const mcdose_particle_dmlc_source_session_context_v1 *context,
+    mcdose_particle_dmlc_source_session_summary_v1 *summary, char *diagnostic,
+    size_t diagnostic_capacity) {
+    clear_diagnostic(diagnostic, diagnostic_capacity);
+    if (context == nullptr || summary == nullptr) {
+        return fail(MCDOSE_PARTICLE_DMLC_STATUS_INVALID_ARGUMENT, diagnostic,
+                    diagnostic_capacity,
+                    "source session summary contains a null pointer");
+    }
+    if (summary->abi_version != MCDOSE_PARTICLE_DMLC_NATIVE_ABI_VERSION ||
+        summary->struct_size < sizeof(*summary)) {
+        return fail(MCDOSE_PARTICLE_DMLC_STATUS_ABI_MISMATCH, diagnostic,
+                    diagnostic_capacity,
+                    "source session summary ABI version or size differs");
+    }
+    const uint32_t abi_version = summary->abi_version;
+    const uint32_t struct_size = summary->struct_size;
+    *summary = context->summary;
+    summary->abi_version = abi_version;
+    summary->struct_size = struct_size;
     return MCDOSE_PARTICLE_DMLC_STATUS_OK;
 }

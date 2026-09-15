@@ -62,6 +62,30 @@ typedef struct mcdose_particle_dmlc_source_session_result_v1 {
     mcdose_particle_dmlc_particle_v1 particle;
 } mcdose_particle_dmlc_source_session_result_v1;
 
+typedef struct mcdose_particle_dmlc_source_session_summary_v1 {
+    uint32_t abi_version;
+    uint32_t struct_size;
+    uint32_t source_exhausted;
+    uint32_t reserved;
+    uint64_t incident_callback_count;
+    uint64_t incident_particle_count;
+    uint64_t observed_source_history_count;
+    uint64_t emitted_product_count;
+    uint64_t pass_through_product_count;
+    uint64_t producer_incident_count;
+    uint64_t producer_blocked_incident_count;
+    uint64_t producer_retained_product_count;
+    uint64_t producer_primary_retained_count;
+    uint64_t producer_scattered_photon_retained_count;
+    uint64_t producer_generated_electron_discarded_count;
+    uint64_t producer_random_draw_count;
+    uint64_t source_callback_failure_count;
+    uint64_t incident_rejection_count;
+    uint64_t producer_failure_count;
+    uint64_t last_source_history_id;
+    uint64_t reserved_counts[4];
+} mcdose_particle_dmlc_source_session_summary_v1;
+
 /*
  * Creates a scalar source session. It has no DICOM, EGSnrc, or BEAM ABI
  * dependency. One context and its callback state are single-consumer only.
@@ -102,6 +126,14 @@ MCDOSE_PARTICLE_DMLC_API int32_t mcdose_particle_dmlc_next_source_products_v1(
     mcdose_particle_dmlc_source_session_result_v1 *results,
     uint32_t result_capacity,
     uint32_t *product_count,
+    char *diagnostic,
+    size_t diagnostic_capacity);
+
+/* Copies a side-effect-free snapshot of the source and producer counters. */
+MCDOSE_PARTICLE_DMLC_API int32_t
+mcdose_particle_dmlc_get_source_session_summary_v1(
+    const mcdose_particle_dmlc_source_session_context_v1 *context,
+    mcdose_particle_dmlc_source_session_summary_v1 *summary,
     char *diagnostic,
     size_t diagnostic_capacity);
 

@@ -33,6 +33,13 @@ mcdose_particle_dmlc_source_session_result_v1 result() {
     return value;
 }
 
+mcdose_particle_dmlc_source_session_summary_v1 session_summary() {
+    mcdose_particle_dmlc_source_session_summary_v1 value = {};
+    value.abi_version = MCDOSE_PARTICLE_DMLC_NATIVE_ABI_VERSION;
+    value.struct_size = sizeof(value);
+    return value;
+}
+
 mcdose_particle_dmlc_source_incident_v1 incident(uint64_t history_id,
                                                    uint64_t particle_id,
                                                    uint32_t starts_new_history) {
@@ -207,6 +214,12 @@ int main() {
               &invalid_config, next_incident, nullptr, &invalid_raw, diagnostic,
               sizeof(diagnostic)) == MCDOSE_PARTICLE_DMLC_STATUS_ABI_MISMATCH);
     CHECK(invalid_raw == nullptr);
+    invalid_config = config();
+    invalid_config.reserved[0] = 1;
+    CHECK(mcdose_particle_dmlc_create_source_session_v1(
+              &invalid_config, next_incident, nullptr, &invalid_raw, diagnostic,
+              sizeof(diagnostic)) == MCDOSE_PARTICLE_DMLC_STATUS_VALIDATION_FAILED);
+    CHECK(invalid_raw == nullptr);
 
     source_state direct = {{incident(41, 101, 1), incident(41, 102, 0)}};
     auto direct_config = config();
@@ -252,6 +265,28 @@ int main() {
               direct_session.get(), &exhausted, diagnostic,
               sizeof(diagnostic)) == MCDOSE_PARTICLE_DMLC_STATUS_OK);
     CHECK(exhausted.has_product == 0);
+    auto direct_summary = session_summary();
+    CHECK(mcdose_particle_dmlc_get_source_session_summary_v1(
+              direct_session.get(), &direct_summary, diagnostic,
+              sizeof(diagnostic)) == MCDOSE_PARTICLE_DMLC_STATUS_OK);
+    CHECK(direct_summary.source_exhausted == 1);
+    CHECK(direct_summary.incident_callback_count == 3);
+    CHECK(direct_summary.incident_particle_count == 2);
+    CHECK(direct_summary.observed_source_history_count == 1);
+    CHECK(direct_summary.emitted_product_count == 2);
+    CHECK(direct_summary.pass_through_product_count == 2);
+    CHECK(direct_summary.producer_incident_count == 0);
+    CHECK(direct_summary.last_source_history_id == 41);
+    auto exhausted_again = result();
+    CHECK(mcdose_particle_dmlc_next_source_product_v1(
+              direct_session.get(), &exhausted_again, diagnostic,
+              sizeof(diagnostic)) == MCDOSE_PARTICLE_DMLC_STATUS_OK);
+    CHECK(exhausted_again.has_product == 0);
+    auto repeated_summary = session_summary();
+    CHECK(mcdose_particle_dmlc_get_source_session_summary_v1(
+              direct_session.get(), &repeated_summary, diagnostic,
+              sizeof(diagnostic)) == MCDOSE_PARTICLE_DMLC_STATUS_OK);
+    CHECK(repeated_summary.incident_callback_count == 3);
 
     source_state batch = {{incident(41, 101, 1), incident(41, 102, 0)}};
     mcdose_particle_dmlc_source_session_context_v1 *batch_raw = nullptr;
@@ -302,6 +337,13 @@ int main() {
               invalid_session.get(), &invalid_incident_result, diagnostic,
               sizeof(diagnostic)) == MCDOSE_PARTICLE_DMLC_STATUS_VALIDATION_FAILED);
     CHECK(std::strstr(diagnostic, "flags") != nullptr);
+    auto invalid_summary = session_summary();
+    CHECK(mcdose_particle_dmlc_get_source_session_summary_v1(
+              invalid_session.get(), &invalid_summary, diagnostic,
+              sizeof(diagnostic)) == MCDOSE_PARTICLE_DMLC_STATUS_OK);
+    CHECK(invalid_summary.incident_callback_count == 1);
+    CHECK(invalid_summary.incident_particle_count == 0);
+    CHECK(invalid_summary.incident_rejection_count == 1);
 
     fixture values;
     mcdose_particle_dmlc_producer_config_v1 producer_config = {};
@@ -363,6 +405,24 @@ int main() {
     CHECK(scattered_result.source_history_id == 77);
     CHECK(scattered_result.particle.history_id == 77);
     CHECK(scattered_result.particle.parent_particle_id == 301);
+    auto transported_summary = session_summary();
+    CHECK(mcdose_particle_dmlc_get_source_session_summary_v1(
+              transported_session.get(), &transported_summary, diagnostic,
+              sizeof(diagnostic)) == MCDOSE_PARTICLE_DMLC_STATUS_OK);
+    CHECK(transported_summary.source_exhausted == 0);
+    CHECK(transported_summary.incident_callback_count == 1);
+    CHECK(transported_summary.incident_particle_count == 1);
+    CHECK(transported_summary.observed_source_history_count == 1);
+    CHECK(transported_summary.emitted_product_count == 2);
+    CHECK(transported_summary.pass_through_product_count == 0);
+    CHECK(transported_summary.producer_incident_count == 1);
+    CHECK(transported_summary.producer_blocked_incident_count == 0);
+    CHECK(transported_summary.producer_retained_product_count == 2);
+    CHECK(transported_summary.producer_primary_retained_count == 1);
+    CHECK(transported_summary.producer_scattered_photon_retained_count == 1);
+    CHECK(transported_summary.producer_generated_electron_discarded_count == 1);
+    CHECK(transported_summary.producer_random_draw_count == random.next);
+    CHECK(transported_summary.last_source_history_id == 77);
 
     mcdose_particle_dmlc_producer_context_v1 *batch_producer_raw = nullptr;
     CHECK(mcdose_particle_dmlc_create_producer_context_v1(

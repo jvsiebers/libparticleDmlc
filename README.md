@@ -162,8 +162,11 @@ reuse remains one statistical history. It deliberately has no DICOM, BEAMnrc,
 or EGSnrc ABI dependency. A null producer supports direct pass-through; a
 non-null producer is caller-owned and applies the commissioned MLC transport.
 Batch output is a bounded scalar-equivalent loop and cannot be mixed with
-scalar calls on one session. BEAM/EGSnrc consumer adapters are separate future
-layers.
+scalar calls on one session. A side-effect-free summary snapshot reports
+incident callback and particle counts, observed source-history boundaries,
+emitted products, pass-through products, producer blocked/retained/product-kind
+counts, random draws, failures, exhaustion, and the last source-history ID.
+BEAM/EGSnrc consumer adapters are separate layers.
 
 An optional `MCDOSE_PARTICLE_DMLC_BUILD_STARTUP_LOADER=ON` target links SQLite
 3.37 or newer outside the transport core. It strictly loads the versioned
