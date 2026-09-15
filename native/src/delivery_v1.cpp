@@ -403,22 +403,15 @@ extern "C" int32_t mcdose_particle_dmlc_sample_delivery_v1(
     }
 
     size_t segment = context->control_point_count;
-    if (fractional_meterset == 1.0) {
-        for (size_t index = context->control_point_count - 1; index > 0; --index) {
-            if (context->cumulative_meterset_fractions[index] >
-                context->cumulative_meterset_fractions[index - 1]) {
-                segment = index - 1;
-                break;
-            }
-        }
-    } else {
-        for (size_t index = 0; index + 1 < context->control_point_count; ++index) {
-            const double start = context->cumulative_meterset_fractions[index];
-            const double stop = context->cumulative_meterset_fractions[index + 1];
-            if (stop > start && start <= fractional_meterset && fractional_meterset < stop) {
-                segment = index;
-                break;
-            }
+    for (size_t index = 0; index + 1 < context->control_point_count; ++index) {
+        const double start = context->cumulative_meterset_fractions[index];
+        const double stop = context->cumulative_meterset_fractions[index + 1];
+        const bool begins_delivery = fractional_meterset == 0.0 && start == 0.0;
+        const bool reaches_boundary =
+            start < fractional_meterset && fractional_meterset <= stop;
+        if (stop > start && (begins_delivery || reaches_boundary)) {
+            segment = index;
+            break;
         }
     }
     if (segment + 1 >= context->control_point_count) {

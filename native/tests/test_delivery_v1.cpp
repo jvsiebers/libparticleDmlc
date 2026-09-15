@@ -105,11 +105,11 @@ int main() {
     CHECK(mcdose_particle_dmlc_sample_delivery_v1(
               context, 0.5, &state, bank_1, bank_2, 4, diagnostic,
               sizeof(diagnostic)) == 0);
-    CHECK(state.source_segment_index == 2);
-    CHECK(state.interpolation_fraction == 0.0);
+    CHECK(state.source_segment_index == 0);
+    CHECK(state.interpolation_fraction == 1.0);
     CHECK(state.gantry_angle_deg == 90.0);
-    CHECK(bank_1[0] == 20.0);
-    CHECK(bank_2[3] == -23.0);
+    CHECK(bank_1[0] == 10.0);
+    CHECK(bank_2[3] == -13.0);
 
     CHECK(mcdose_particle_dmlc_sample_delivery_v1(
               context, 0.25, &state, bank_1, bank_2, 4, diagnostic,
