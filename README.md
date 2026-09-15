@@ -174,7 +174,9 @@ Python-created delivery/machine artifact, verifies its complete canonical
 payload SHA-256, calls the same deep-copying producer constructor, and releases
 all database and parsing storage before transport. Release and sanitizer-linked
 acceptance cover valid producer execution plus altered provenance, schema, and
-application identity.
+application identity. The loader explicitly initializes SQLite before opening
+the artifact, including on Windows builds where SQLite was compiled with
+`SQLITE_OMIT_AUTOINIT`.
 
 Enabling both the startup loader and EGSnrc Mortran bridge also builds
 `mcdose_particle_dmlc_egsnrc_source_mortran_bridge`. It owns one startup-loaded

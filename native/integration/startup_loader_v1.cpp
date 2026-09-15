@@ -46,6 +46,13 @@ int32_t fail(int32_t status, char *diagnostic, size_t capacity,
 class database {
   public:
     explicit database(const char *path) {
+        const int initialize_result = sqlite3_initialize();
+        if (initialize_result != SQLITE_OK) {
+            throw load_error(
+                MCDOSE_PARTICLE_DMLC_STATUS_VALIDATION_FAILED,
+                "startup SQLite initialization failed with status " +
+                    std::to_string(initialize_result));
+        }
         const int result = sqlite3_open_v2(
             path, &handle_, SQLITE_OPEN_READONLY | SQLITE_OPEN_NOMUTEX, nullptr);
         if (result != SQLITE_OK) {
